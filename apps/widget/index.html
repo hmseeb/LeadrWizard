@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LeadrWizard Widget Dev</title>
+  </head>
+  <body>
+    <div id="leadrwizard-dev"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Dev mode: auto-init after module loads
+      window.addEventListener("DOMContentLoaded", () => {
+        setTimeout(() => {
+          if (window.LeadrWizard) {
+            window.LeadrWizard.init({
+              sessionId: "dev-session",
+              containerId: "leadrwizard-dev",
+              supabaseUrl: "http://localhost:54321",
+              supabaseKey: "dev-key",
+            });
+          }
+        }, 100);
+      });
+    </script>
+  </body>
+</html>
