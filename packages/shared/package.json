@@ -10,6 +10,7 @@
     "./supabase": "./src/supabase/client.ts",
     "./agent": "./src/agent/index.ts",
     "./automations": "./src/automations/index.ts",
+    "./comms": "./src/comms/index.ts",
     "./utils": "./src/utils/index.ts"
   },
   "scripts": {

@@ -11,7 +11,7 @@ export default function SettingsPage() {
         {[
           {
             name: "GoHighLevel",
-            description: "CRM sub-account provisioning and snapshot deployment",
+            description: "CRM, email, sub-account provisioning, snapshot deployment",
             fields: ["API Key", "Location ID", "Snapshot ID"],
             status: "Not configured",
           },
@@ -31,12 +31,6 @@ export default function SettingsPage() {
             name: "ElevenLabs",
             description: "In-browser voice onboarding",
             fields: ["Agent ID"],
-            status: "Not configured",
-          },
-          {
-            name: "SendGrid",
-            description: "Transactional and follow-up emails",
-            fields: ["API Key", "From Email"],
             status: "Not configured",
           },
           {
