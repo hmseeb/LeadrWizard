@@ -75,9 +75,6 @@ importers:
       '@leadrwizard/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@supabase/supabase-js':
-        specifier: ^2.49.0
-        version: 2.99.1
       react:
         specifier: ^19.0.0
         version: 19.2.4
@@ -125,7 +122,7 @@ importers:
         specifier: ^2.49.0
         version: 2.99.1
       stripe:
-        specifier: ^20.4.1
+        specifier: 20.4.1
         version: 20.4.1(@types/node@22.19.15)
     devDependencies:
       '@leadrwizard/tsconfig':
