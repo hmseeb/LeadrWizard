@@ -125,7 +125,7 @@ Note: Phase 5 depends on Phase 3 (service definitions drive widget steps). Phase
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Security Foundation | 2/5 | In Progress|  |
+| 1. Security Foundation | 4/5 | In Progress|  |
 | 2. Self-Service Signup | 0/TBD | Not started | - |
 | 3. Admin CRUD: Content | 0/TBD | Not started | - |
 | 4. Org Settings + Per-Org Isolation | 0/TBD | Not started | - |

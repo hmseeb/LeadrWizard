@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 ## Current Position
 
 Phase: 1 of 8 (Security Foundation)
-Plan: 2 of 5 in current phase
+Plan: 3 of 5 in current phase
 Status: In progress
-Last activity: 2026-03-14 — Completed plan 01-02 (Stripe SDK install + stripe-adapter.ts refactor with constructEvent)
+Last activity: 2026-03-14 — Completed plan 01-03 (webhook hardening: Stripe signature verification + idempotency + body.org_id removal)
 
-Progress: [██░░░░░░░░] 10%
+Progress: [███░░░░░░░] 15%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 6 min
-- Total execution time: 11 min
+- Total plans completed: 3
+- Average duration: 5 min
+- Total execution time: 14 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-security-foundation | 2 | 11 min | 6 min |
+| 01-security-foundation | 3 | 14 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2 min), 01-02 (9 min)
+- Last 5 plans: 01-01 (2 min), 01-02 (9 min), 01-03 (3 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -54,6 +54,10 @@ Recent decisions affecting current work:
 - [01-02]: Used Stripe API version 2026-02-25.clover (latest stable, from SDK's ApiVersion constant)
 - [01-02]: getStripeClient() creates per-call instance — avoids boot failures when STRIPE_SECRET_KEY missing at import time
 - [01-02]: Stripe v20 moved current_period_start/end to SubscriptionItem; invoice.subscription to parent.subscription_details
+- [01-03]: Return 200 on duplicate webhooks, not 4xx/5xx — Stripe retries on 5xx causing infinite loops
+- [01-03]: Upsert processed_webhook_events BEFORE processing to prevent race conditions under concurrent requests
+- [01-03]: Replace body.org_id fallback with x-internal-secret + x-org-id headers — body never trusted for org resolution
+- [01-03]: STRIPE_WEBHOOK_SECRET missing throws at verification time, not silently passes
 
 ### Pending Todos
 
@@ -69,5 +73,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 01-02-PLAN.md (Stripe SDK install + stripe-adapter.ts SDK refactor with constructEvent)
+Stopped at: Completed 01-03-PLAN.md (webhook hardening: Stripe signature verification + idempotency + body.org_id removal)
 Resume file: None

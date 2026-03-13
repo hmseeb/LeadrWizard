@@ -12,7 +12,7 @@ Requirements for production launch. Each maps to roadmap phases.
 - [x] **SEC-01**: Stripe webhook endpoint verifies signature using `stripe.webhooks.constructEvent()` before processing any event
 - [x] **SEC-02**: Payment and Stripe webhook handlers check idempotency key (event.id) against processed_webhook_events table and skip duplicates
 - [x] **SEC-03**: Anonymous RLS policies (`sessions_anon_insert`, `sessions_anon_update`, `responses_anon_insert`) removed and replaced with org_id-scoped server-side validation
-- [ ] **SEC-04**: Payment webhook `body.org_id` fallback removed. Org resolution requires valid API key or webhook signature only
+- [x] **SEC-04**: Payment webhook `body.org_id` fallback removed. Org resolution requires valid API key or webhook signature only
 - [ ] **SEC-05**: Widget response submission routes through authenticated API endpoint (`POST /api/widget/response`) instead of direct anonymous Supabase inserts
 - [ ] **SEC-06**: Rate limiting applied to all public webhook endpoints and widget API using Upstash Redis (replacing broken in-memory rate limiter)
 
@@ -77,7 +77,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-01 | Phase 1 | Complete |
 | SEC-02 | Phase 1 | Complete |
 | SEC-03 | Phase 1 | Complete |
-| SEC-04 | Phase 1 | Pending |
+| SEC-04 | Phase 1 | Complete |
 | SEC-05 | Phase 1 | Pending |
 | SEC-06 | Phase 7 | Pending |
 | SIGN-01 | Phase 2 | Pending |
