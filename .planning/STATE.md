@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 ## Current Position
 
 Phase: 1 of 8 (Security Foundation)
-Plan: 4 of 5 in current phase
+Plan: 5 of 5 in current phase (phase complete)
 Status: In progress
-Last activity: 2026-03-14 — Completed plan 01-04 (atomic payment handler via supabase.rpc('provision_client'))
+Last activity: 2026-03-14 — Completed plan 01-05 (authenticated widget response API route + widget hook refactor)
 
-Progress: [████░░░░░░] 20%
+Progress: [█████░░░░░] 25%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
-- Average duration: 4 min
-- Total execution time: 17 min
+- Total plans completed: 5
+- Average duration: 5 min
+- Total execution time: 25 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-security-foundation | 4 | 17 min | 4 min |
+| 01-security-foundation | 5 | 25 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2 min), 01-02 (9 min), 01-03 (3 min), 01-04 (3 min)
+- Last 5 plans: 01-01 (2 min), 01-02 (9 min), 01-03 (3 min), 01-04 (3 min), 01-05 (8 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -60,6 +60,10 @@ Recent decisions affecting current work:
 - [01-03]: STRIPE_WEBHOOK_SECRET missing throws at verification time, not silently passes
 - [01-04]: Fetch-after-rpc pattern — plpgsql returns IDs, TypeScript fetches full rows using existing types
 - [01-04]: GHL provisioning and outreach queue remain outside rpc() — external API calls cannot participate in DB transactions
+- [Phase 01-05]: widget write path uses fetch() to admin API so that RLS-removed anon insert policies are never needed
+- [Phase 01-05]: apiBaseUrl defaults to empty string so fetch() is relative URL in dev (same-origin)
+- [Phase 01-05]: interaction_log insert moved fully server-side — widget never touches interaction_log directly
+- [Phase 01-05]: org_id and client_id resolved from server-validated session — never trusted from client request body
 
 ### Pending Todos
 
@@ -75,5 +79,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 01-04-PLAN.md (atomic payment handler via supabase.rpc('provision_client'))
+Stopped at: Completed 01-05-PLAN.md (authenticated widget response API route + widget hook refactor)
 Resume file: None
