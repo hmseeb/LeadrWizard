@@ -11,6 +11,7 @@ import {
   Radio,
   AlertTriangle,
   Settings,
+  CreditCard,
 } from "lucide-react";
 
 const navigation = [
@@ -21,6 +22,7 @@ const navigation = [
   { name: "Packages", href: "/packages", icon: Package },
   { name: "Templates", href: "/templates", icon: Layout },
   { name: "Escalations", href: "/escalations", icon: AlertTriangle },
+  { name: "Billing", href: "/billing", icon: CreditCard },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
