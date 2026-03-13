@@ -1,5 +1,6 @@
-import type { Organization, OrgMember } from "../types";
+import type { Organization, OrgMember, OrgCredentials } from "../types";
 import type { SupabaseClient } from "../supabase/client";
+import { decrypt } from "../crypto";
 
 /**
  * Multi-tenant organization management.
@@ -266,4 +267,64 @@ export async function updateOrgSettings(
       updated_at: new Date().toISOString(),
     })
     .eq("id", orgId);
+}
+
+/**
+ * Fetches and decrypts an organization's stored credentials.
+ * Returns null for services without configured credentials.
+ * Used by outreach-processor and task-processor to get per-org config.
+ */
+export async function getOrgCredentials(
+  supabase: SupabaseClient,
+  orgId: string
+): Promise<OrgCredentials> {
+  const { data: org, error } = await supabase
+    .from("organizations")
+    .select(
+      "twilio_account_sid_encrypted, twilio_auth_token_encrypted, twilio_phone_number, ghl_api_key_encrypted, ghl_location_id, ghl_company_id, vapi_api_key_encrypted, vapi_assistant_id, elevenlabs_agent_id"
+    )
+    .eq("id", orgId)
+    .single();
+
+  if (error || !org) {
+    return {};
+  }
+
+  const row = org as Record<string, string | null>;
+  const creds: OrgCredentials = {};
+
+  // Twilio: all three fields required
+  if (row.twilio_account_sid_encrypted && row.twilio_auth_token_encrypted && row.twilio_phone_number) {
+    creds.twilio = {
+      accountSid: decrypt(row.twilio_account_sid_encrypted),
+      authToken: decrypt(row.twilio_auth_token_encrypted),
+      phoneNumber: row.twilio_phone_number,
+    };
+  }
+
+  // GHL: apiKey and locationId required
+  if (row.ghl_api_key_encrypted && row.ghl_location_id) {
+    creds.ghl = {
+      apiKey: decrypt(row.ghl_api_key_encrypted),
+      locationId: row.ghl_location_id,
+      companyId: row.ghl_company_id || undefined,
+    };
+  }
+
+  // Vapi: both fields required
+  if (row.vapi_api_key_encrypted && row.vapi_assistant_id) {
+    creds.vapi = {
+      apiKey: decrypt(row.vapi_api_key_encrypted),
+      assistantId: row.vapi_assistant_id,
+    };
+  }
+
+  // ElevenLabs: agent ID only
+  if (row.elevenlabs_agent_id) {
+    creds.elevenlabs = {
+      agentId: row.elevenlabs_agent_id,
+    };
+  }
+
+  return creds;
 }

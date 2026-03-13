@@ -1,6 +1,7 @@
 export {
   createOrganization,
   getUserOrg,
+  getOrgCredentials,
   inviteTeamMember,
   acceptInvitation,
   listOrgMembers,

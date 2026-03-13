@@ -43,6 +43,12 @@ export {
 export { processServiceTasks } from "./task-processor";
 
 export {
+  provisionPhoneNumber,
+  type TwilioProvisionConfig,
+  type ProvisionResult,
+} from "./twilio-provisioner";
+
+export {
   createEscalation,
   resolveEscalation,
   assignEscalation,
