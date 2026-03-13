@@ -70,8 +70,8 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Database migration: message_templates table + package_services write RLS fix (CRUD-02, CRUD-03)
-- [ ] 03-02-PLAN.md — Services CRUD: server actions + form with dynamic field builders + page routes (CRUD-01)
+- [x] 03-01-PLAN.md — Database migration: message_templates table + package_services write RLS fix (CRUD-02, CRUD-03)
+- [x] 03-02-PLAN.md — Services CRUD: server actions + form with dynamic field builders + page routes (CRUD-01)
 - [ ] 03-03-PLAN.md — Packages CRUD: server actions + form with service assignment + page routes (CRUD-02)
 - [ ] 03-04-PLAN.md — Message Templates CRUD: server actions + form with live preview + page routes (CRUD-03)
 

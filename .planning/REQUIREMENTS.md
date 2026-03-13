@@ -25,7 +25,7 @@ Requirements for production launch. Each maps to roadmap phases.
 
 ### Admin CRUD
 
-- [ ] **CRUD-01**: Admin can create, edit, and soft-delete service definitions with required_data_fields and setup_steps
+- [x] **CRUD-01**: Admin can create, edit, and soft-delete service definitions with required_data_fields and setup_steps
 - [x] **CRUD-02**: Admin can create, edit, and delete packages with assigned services and pricing metadata
 - [x] **CRUD-03**: Admin can create, edit, and delete message templates with variable interpolation preview per channel (SMS, email, voice)
 - [ ] **CRUD-04**: Admin can configure org settings: Twilio account SID/auth token, GHL API key, outreach cadence config
@@ -84,7 +84,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SIGN-02 | Phase 2 | Complete |
 | SIGN-03 | Phase 2 | Complete |
 | SIGN-04 | Phase 2 | Complete |
-| CRUD-01 | Phase 3 | Pending |
+| CRUD-01 | Phase 3 | Complete |
 | CRUD-02 | Phase 3 | Complete |
 | CRUD-03 | Phase 3 | Complete |
 | CRUD-04 | Phase 4 | Pending |

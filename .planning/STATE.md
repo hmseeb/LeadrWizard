@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 ## Current Position
 
 Phase: 3 of 8 (Admin CRUD: Content)
-Plan: 1 of 4 in current phase
+Plan: 2 of 4 in current phase
 Status: Executing Phase 3
-Last activity: 2026-03-14 — Completed plan 03-01 (message templates migration + types)
+Last activity: 2026-03-14 — Completed plan 03-02 (service definition CRUD)
 
-Progress: [████████░░] 45%
+Progress: [█████████░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
+- Total plans completed: 10
 - Average duration: 4 min
-- Total execution time: 35 min
+- Total execution time: 40 min
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [████████░░] 45%
 |-------|-------|-------|----------|
 | 01-security-foundation | 5 | 25 min | 5 min |
 | 02-self-service-signup | 3 | 8 min | 3 min |
-| 03-admin-crud-content | 1 | 2 min | 2 min |
+| 03-admin-crud-content | 2 | 7 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-05 (8 min), 02-01 (1 min), 02-02 (3 min), 02-03 (4 min), 03-01 (2 min)
+- Last 5 plans: 02-01 (1 min), 02-02 (3 min), 02-03 (4 min), 03-01 (2 min), 03-02 (5 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -81,6 +81,12 @@ Recent decisions affecting current work:
 - [03-01]: channel uses 'voice' not 'voice_call' — message templates describe content rendering, not interaction channels
 - [03-01]: package_services_modify uses 'for all using(...)' — covers insert/update/delete and acts as with check for inserts
 - [03-01]: TEMPLATE_VARIABLES defined as const tuple for type-safe iteration in template editor UI
+- [03-02]: Slug auto-generated from name on create, NOT updated on edit to preserve existing references
+- [03-02]: softDeleteService sets is_active=false rather than deleting rows to preserve FK references
+- [03-02]: DeleteDialog uses native <dialog> element with showModal() for free focus trapping and Escape-to-close
+- [03-02]: DataFieldBuilder and SetupStepBuilder serialize arrays as JSON into hidden inputs for FormData
+- [03-02]: ServiceForm uses useActionState (React 19) for error handling and pending state
+- [03-02]: UI says "Deactivate" not "Delete" since soft-delete is reversible
 
 ### Pending Todos
 
@@ -95,5 +101,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 03-01-PLAN.md (message templates migration + types). Phase 3 in progress.
+Stopped at: Completed 03-02-PLAN.md (service definition CRUD). Phase 3 in progress.
 Resume file: None
