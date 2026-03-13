@@ -9,29 +9,29 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 
 ## Current Position
 
-Phase: 2 of 8 (Self-Service Signup)
-Plan: 3 of 3 in current phase
-Status: In progress
-Last activity: 2026-03-14 — Completed plan 02-02 (signup checkout + webhook handler)
+Phase: 2 of 8 (Self-Service Signup) -- COMPLETE
+Plan: 3 of 3 in current phase -- COMPLETE
+Status: Phase 2 complete, ready for Phase 3
+Last activity: 2026-03-14 — Completed plan 02-03 (setup wizard + signup success page)
 
-Progress: [███████░░░] 35%
+Progress: [████████░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
+- Total plans completed: 8
 - Average duration: 4 min
-- Total execution time: 29 min
+- Total execution time: 33 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-security-foundation | 5 | 25 min | 5 min |
-| 02-self-service-signup | 2 | 4 min | 2 min |
+| 02-self-service-signup | 3 | 8 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-03 (3 min), 01-04 (3 min), 01-05 (8 min), 02-01 (1 min), 02-02 (3 min)
+- Last 5 plans: 01-04 (3 min), 01-05 (8 min), 02-01 (1 min), 02-02 (3 min), 02-03 (4 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -73,6 +73,10 @@ Recent decisions affecting current work:
 - [02-02]: handleNewOrgSignup creates org before user (recoverable failure mode)
 - [02-02]: Idempotent on duplicate webhooks via provision_org result.idempotent flag
 - [02-02]: constructEvent added to billing barrel export for consistency
+- [02-03]: Wizard visibility gated on onboarding_completed boolean AND missing services/packages
+- [02-03]: Integration check looks for twilio_account_sid or ghl_api_key in org settings JSON
+- [02-03]: getUserOrg imported from @leadrwizard/shared/tenant for org resolution
+- [02-03]: Success page placed in (auth) route group for minimal layout (no sidebar)
 
 ### Pending Todos
 
@@ -87,5 +91,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 02-02-PLAN.md (signup checkout + webhook handler)
+Stopped at: Completed 02-03-PLAN.md (setup wizard + signup success page). Phase 2 complete.
 Resume file: None

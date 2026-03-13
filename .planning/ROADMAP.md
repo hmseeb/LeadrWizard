@@ -13,7 +13,7 @@ Brownfield completion sprint closing the final 25% of a working onboarding platf
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Security Foundation** - Patch three active exploits and harden all public entry points before anything else ships (completed 2026-03-13)
-- [ ] **Phase 2: Self-Service Signup** - Agencies complete Stripe checkout and get a provisioned org with admin access automatically
+- [x] **Phase 2: Self-Service Signup** - Agencies complete Stripe checkout and get a provisioned org with admin access automatically (completed 2026-03-14)
 - [ ] **Phase 3: Admin CRUD: Content** - Admins can create and manage service definitions, packages, and message templates
 - [ ] **Phase 4: Org Settings + Per-Org Isolation** - Each org has its own credentials, phone number, and isolated operational config
 - [ ] **Phase 5: Widget Core Flow** - Embeddable widget loads a session, collects responses step-by-step, and reaches completion state
@@ -57,7 +57,7 @@ Plans:
 Plans:
 - [x] 02-01-PLAN.md — Database migration: provision_org plpgsql function for atomic org + subscription creation (SIGN-01)
 - [x] 02-02-PLAN.md — Public checkout endpoint + webhook new-signup branch + Supabase auth invite (SIGN-01, SIGN-02, SIGN-04)
-- [ ] 02-03-PLAN.md — Empty-state setup wizard on dashboard + signup success page (SIGN-03)
+- [x] 02-03-PLAN.md — Empty-state setup wizard on dashboard + signup success page (SIGN-03)
 
 ### Phase 3: Admin CRUD: Content
 **Goal**: Admins can create and manage the content that drives onboarding: service definitions, packages, and message templates
@@ -131,7 +131,7 @@ Note: Phase 5 depends on Phase 3 (service definitions drive widget steps). Phase
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Security Foundation | 5/5 | Complete    | 2026-03-13 |
-| 2. Self-Service Signup | 1/3 | In progress | - |
+| 2. Self-Service Signup | 3/3 | Complete | 2026-03-14 |
 | 3. Admin CRUD: Content | 0/TBD | Not started | - |
 | 4. Org Settings + Per-Org Isolation | 0/TBD | Not started | - |
 | 5. Widget Core Flow | 0/TBD | Not started | - |
