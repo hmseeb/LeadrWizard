@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 ## Current Position
 
 Phase: 4 of 8 (Org Settings + Per-Org Isolation)
-Plan: 1 of 4 in current phase
+Plan: 4 of 4 in current phase
 Status: Executing
-Last activity: 2026-03-14 — Completed plan 04-01 (org credentials foundation)
+Last activity: 2026-03-14 — Completed plan 04-04 (dead letter queue)
 
-Progress: [█████████████] 65%
+Progress: [██████████████] 68%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
+- Total plans completed: 15
 - Average duration: 4 min
-- Total execution time: 50 min
+- Total execution time: 56 min
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [█████████████] 65%
 | 01-security-foundation | 5 | 25 min | 5 min |
 | 02-self-service-signup | 3 | 8 min | 3 min |
 | 03-admin-crud-content | 4 | 14 min | 4 min |
-| 04-org-settings-isolation | 1 | 3 min | 3 min |
+| 04-org-settings-isolation | 3 | 9 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (2 min), 03-02 (5 min), 03-03 (3 min), 03-04 (4 min), 04-01 (3 min)
+- Last 5 plans: 03-02 (5 min), 03-03 (3 min), 03-04 (4 min), 04-01 (3 min), 04-04 (3 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -101,6 +101,10 @@ Recent decisions affecting current work:
 - [04-01]: No RLS INSERT on dead_letter_queue — service role inserts only
 - [04-01]: DLQ entries never deleted, only retried or dismissed (audit trail)
 - [04-01]: Partial index idx_dlq_active filters to non-retried/non-dismissed entries
+- [04-04]: moveToDLQ resolves org_id via client_services -> clients join chain (no direct org_id on service_tasks)
+- [04-04]: Escalation creation failure does not block DLQ insertion (try/catch around createEscalation)
+- [04-04]: retryDLQEntry resets attempt_count to 0 and status to in_progress for fresh retry cycle
+- [04-04]: GHL handlers updated from 3 to 5 attempts with exponential backoff (was fixed 30min intervals)
 
 ### Pending Todos
 
@@ -115,5 +119,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 04-01-PLAN.md (org credentials foundation)
+Stopped at: Completed 04-04-PLAN.md (dead letter queue)
 Resume file: None
