@@ -11,17 +11,17 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 
 Phase: 6 of 8 (Widget Voice + Security)
 Plan: 2 of 2 in current phase
-Status: In Progress
-Last activity: 2026-03-14 — Completed plan 06-02 (widget origin validation)
+Status: Phase Complete
+Last activity: 2026-03-14 — Completed plan 06-01 (widget voice + form hybrid)
 
-Progress: [█████████████████████] 83%
+Progress: [██████████████████████] 88%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20
+- Total plans completed: 21
 - Average duration: 4 min
-- Total execution time: 72 min
+- Total execution time: 74 min
 
 **By Phase:**
 
@@ -32,14 +32,13 @@ Progress: [█████████████████████] 83%
 | 03-admin-crud-content | 4 | 14 min | 4 min |
 | 04-org-settings-isolation | 4 | 15 min | 4 min |
 | 05-widget-core-flow | 3 | 9 min | 3 min |
-| 06-widget-voice-security | 1 | 1 min | 1 min |
+| 06-widget-voice-security | 2 | 3 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-02 (6 min), 05-01 (3 min), 05-02 (3 min), 05-03 (3 min), 06-02 (1 min)
+- Last 5 plans: 05-01 (3 min), 05-02 (3 min), 05-03 (3 min), 06-02 (1 min), 06-01 (2 min)
 - Trend: —
 
 *Updated after each plan completion*
-| Phase 06-01 P01 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -128,6 +127,8 @@ Recent decisions affecting current work:
 - [05-03]: Voice toggle and VoiceBot removed from WizardWidget rendering but component files preserved for Phase 6
 - [05-03]: Completion screen shows next-steps section with 3 bullet points explaining post-onboarding flow
 - [05-03]: ProgressBar unchanged from 05-02: already uses flat ServiceWithProgress shape
+- [06-01]: VoiceBot onAnswer scans missingFields to find matching service for clientServiceId resolution
+- [06-01]: Completion screen shows in voice mode via StepRenderer fallthrough (no mode-switch forced)
 - [06-02]: Three-tier origin detection: ancestorOrigins (Chromium) > document.referrer (Firefox) > window.location.origin (direct script tag)
 - [06-02]: Validation runs before any DOM manipulation or React mounting to prevent flash of content on unauthorized domains
 
@@ -144,5 +145,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 06-02-PLAN.md (widget origin validation)
+Stopped at: Completed 06-01-PLAN.md (widget voice + form hybrid) — Phase 6 complete
 Resume file: None
