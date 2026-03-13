@@ -56,7 +56,7 @@ export default async function DashboardPage() {
           .eq("is_active", true),
         supabase
           .from("organizations")
-          .select("onboarding_completed, settings")
+          .select("onboarding_completed, twilio_account_sid_encrypted, ghl_api_key_encrypted")
           .eq("id", orgId)
           .single(),
       ]);
@@ -64,9 +64,8 @@ export default async function DashboardPage() {
       hasServices = (svcCount ?? 0) > 0;
       hasPackages = (pkgCount ?? 0) > 0;
 
-      // Check if integrations are configured (GHL or Twilio keys present in settings)
-      const settings = (orgRecord?.settings || {}) as Record<string, unknown>;
-      hasIntegrations = !!(settings.twilio_account_sid || settings.ghl_api_key);
+      // Check if integrations are configured (encrypted credential columns from migration 00008)
+      hasIntegrations = !!(orgRecord?.twilio_account_sid_encrypted || orgRecord?.ghl_api_key_encrypted);
 
       // Show wizard if onboarding not marked complete AND missing any content
       showWizard =
