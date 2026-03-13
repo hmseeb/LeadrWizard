@@ -1,5 +1,6 @@
 import type { Escalation, Client, OnboardingSession, InteractionLog } from "../types";
 import type { SupabaseClient } from "../supabase/client";
+import { createRouteLogger } from "../utils/logger";
 
 /**
  * Escalation notification system.
@@ -18,6 +19,8 @@ export interface EscalationNotification {
   session: OnboardingSession | null;
   recentInteractions: InteractionLog[];
 }
+
+const log = createRouteLogger("automations/escalation-notifier");
 
 interface SlackBlock {
   type: string;
@@ -123,7 +126,7 @@ async function sendEscalationNotification(
   }
 
   if (promises.length === 0) {
-    console.warn("No escalation webhook configured. Escalation created but no notification sent.");
+    log.warn("No escalation webhook URL configured");
     return;
   }
 
@@ -233,7 +236,7 @@ async function sendSlackNotification(
   });
 
   if (!response.ok) {
-    console.error(`Slack notification failed: ${response.status}`);
+    log.error({ status: response.status }, "Slack notification failed");
   }
 }
 
@@ -348,7 +351,7 @@ async function sendGoogleChatNotification(
   });
 
   if (!response.ok) {
-    console.error(`Google Chat notification failed: ${response.status}`);
+    log.error({ status: response.status }, "Google Chat notification failed");
   }
 }
 

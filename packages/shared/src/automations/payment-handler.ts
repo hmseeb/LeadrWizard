@@ -5,6 +5,7 @@ import type {
   OnboardingSession,
 } from "../types";
 import type { SupabaseClient } from "../supabase/client";
+import { createRouteLogger } from "../utils/logger";
 import { provisionSubAccount, deploySnapshot } from "./ghl-adapter";
 
 export interface PaymentWebhookPayload {
@@ -17,6 +18,8 @@ export interface PaymentWebhookPayload {
   org_id?: string;
   metadata?: Record<string, unknown>;
 }
+
+const log = createRouteLogger("automations/payment-handler");
 
 export interface OnboardingInitResult {
   client: Client;
@@ -126,7 +129,7 @@ export async function handlePaymentWebhook(
       }
     } catch (err) {
       // Log but don't fail — onboarding should continue even if GHL provisioning fails
-      console.error("GHL provisioning failed (will retry):", err instanceof Error ? err.message : err);
+      log.error({ err: err instanceof Error ? err : new Error(String(err)) }, "GHL provisioning failed");
     }
   }
 

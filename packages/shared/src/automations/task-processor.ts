@@ -1,10 +1,13 @@
 import type { ServiceTask, ServiceTaskStatus } from "../types";
 import type { SupabaseClient } from "../supabase/client";
+import { createRouteLogger } from "../utils/logger";
 import { checkA2PStatus } from "./a2p-manager";
 import { checkGMBAccessStatus } from "./gmb-manager";
 import { sendSMS } from "../comms/twilio-sms";
 import { resolveTemplate, type TemplateParams } from "../comms/message-templates";
 import { createEscalation } from "./escalation-notifier";
+
+const log = createRouteLogger("automations/task-processor");
 
 /**
  * Move a failed task to the dead letter queue after 5+ failures.
@@ -35,7 +38,7 @@ async function moveToDLQ(
   }
 
   if (!orgId) {
-    console.error(`Cannot move task ${task.id} to DLQ: unable to resolve org_id`);
+    log.error({ task_id: task.id }, "Cannot move task to DLQ: unable to resolve org_id");
     return;
   }
 
@@ -82,7 +85,7 @@ async function moveToDLQ(
       });
     } catch {
       // Escalation creation failure should not block DLQ insertion
-      console.error(`Failed to create escalation for DLQ task ${task.id}`);
+      log.error({ task_id: task.id }, "Failed to create escalation for DLQ entry");
     }
   }
 }
@@ -201,10 +204,7 @@ export async function processServiceTasks(
     } catch (err) {
       errors++;
       const errorMessage = err instanceof Error ? err.message : String(err);
-      console.error(
-        `Failed to process task ${task.id} (${task.task_type}):`,
-        errorMessage
-      );
+      log.error({ err: err instanceof Error ? err : new Error(errorMessage), task_id: task.id, task_type: task.task_type }, "Failed to process task");
 
       // Increment attempt count
       const newAttemptCount = task.attempt_count + 1;

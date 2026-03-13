@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "../supabase/client";
 import type { OutreachQueueItem, Client, OnboardingSession, OrgCredentials } from "../types";
+import { createRouteLogger } from "../utils/logger";
 import { sendSMS } from "./twilio-sms";
 import { initiateOutboundCall } from "./vapi-calls";
 import { sendEmail, emailTemplates } from "./ghl-email";
@@ -8,6 +9,8 @@ import { scheduleNextFollowUp, cancelPendingOutreach } from "../automations/outr
 import { contextToSystemPrompt, buildAgentContext } from "../agent/agent-context";
 import { checkCompletion, getMissingSummary } from "../agent/completion-checker";
 import { getOrgCredentials } from "../tenant/org-manager";
+
+const log = createRouteLogger("comms/outreach-processor");
 
 /**
  * Processes pending items in the outreach queue.
@@ -39,10 +42,7 @@ export async function processOutreachQueue(
       processed++;
     } catch (err) {
       errors++;
-      console.error(
-        `Failed to process outreach item ${item.id}:`,
-        err instanceof Error ? err.message : err
-      );
+      log.error({ err: err instanceof Error ? err : new Error(String(err)), item_id: item.id }, "Failed to process outreach item");
 
       // Mark as failed after 3 attempts
       const newAttemptCount = item.attempt_count + 1;
