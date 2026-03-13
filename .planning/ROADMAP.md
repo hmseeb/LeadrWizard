@@ -101,7 +101,12 @@ Plans:
   2. Submitting a step response advances the widget to the next step — the response is persisted server-side via the authenticated API route (not a direct anon Supabase insert)
   3. After all required fields are collected, the widget displays a completion screen with next-steps messaging
   4. If a step submission fails, the widget retries up to 3 times with exponential backoff and shows a fallback error message if all attempts fail
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Session load API endpoint + auto-completion on response submission (WIDG-01, WIDG-03, WIDG-04)
+- [ ] 05-02-PLAN.md — Widget hook refactor: fetch-based reads, retry logic, Supabase removal (WIDG-01, WIDG-03, WIDG-05)
+- [ ] 05-03-PLAN.md — Widget UI: completion screen, error/retry display, voice toggle hidden (WIDG-01, WIDG-03, WIDG-04, WIDG-05)
 
 ### Phase 6: Widget Voice + Security
 **Goal**: Clients can choose between voice and form input within the same session, and the widget validates that it is only embedded on authorized domains
@@ -146,7 +151,7 @@ Note: Phase 5 depends on Phase 3 (service definitions drive widget steps). Phase
 | 2. Self-Service Signup | 3/3 | Complete | 2026-03-14 |
 | 3. Admin CRUD: Content | 0/4 | Not started | - |
 | 4. Org Settings + Per-Org Isolation | 0/4 | Not started | - |
-| 5. Widget Core Flow | 0/TBD | Not started | - |
+| 5. Widget Core Flow | 0/3 | Not started | - |
 | 6. Widget Voice + Security | 0/TBD | Not started | - |
 | 7. Rate Limiting + Structured Logging | 0/TBD | Not started | - |
 | 8. Realtime Dashboard | 0/TBD | Not started | - |
