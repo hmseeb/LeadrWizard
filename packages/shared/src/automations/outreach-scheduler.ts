@@ -1,10 +1,10 @@
 import type {
-  ChannelType,
   OnboardingSession,
   OutreachCadenceConfig,
   OutreachQueueItem,
 } from "../types";
 import type { SupabaseClient } from "../supabase/client";
+import { createEscalation } from "./escalation-notifier";
 
 /**
  * Default outreach cadence — escalates from SMS to voice calls to email.
@@ -66,14 +66,13 @@ export async function scheduleNextFollowUp(
   cadence: OutreachCadenceConfig = DEFAULT_OUTREACH_CADENCE
 ): Promise<OutreachQueueItem | null> {
   if (currentEscalationLevel >= cadence.steps.length) {
-    // All cadence steps exhausted — escalate to human
-    await supabase.from("escalations").insert({
-      client_id: clientId,
-      session_id: session.id,
+    // All cadence steps exhausted — escalate to human with full notification
+    await createEscalation(supabase, {
+      clientId,
+      sessionId: session.id,
       reason: "Client unresponsive after all follow-up attempts",
       context: { escalation_level: currentEscalationLevel },
       channel: "system",
-      status: "open",
     });
     return null;
   }

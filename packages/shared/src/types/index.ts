@@ -289,3 +289,22 @@ export interface AgentDecision {
   message: string;
   options?: string[];
 }
+
+// --- Analytics ---
+
+export interface AnalyticsSnapshot {
+  id: string;
+  snapshot_date: string;
+  active_sessions: number;
+  completed_sessions: number;
+  abandoned_sessions: number;
+  avg_completion_pct: number;
+  total_interactions: number;
+  sms_sent: number;
+  voice_calls_made: number;
+  emails_sent: number;
+  escalations_opened: number;
+  escalations_resolved: number;
+  services_delivered: number;
+  created_at: string;
+}

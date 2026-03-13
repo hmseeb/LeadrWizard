@@ -41,3 +41,9 @@ export {
 } from "./ghl-adapter";
 
 export { processServiceTasks } from "./task-processor";
+
+export {
+  createEscalation,
+  resolveEscalation,
+  assignEscalation,
+} from "./escalation-notifier";
