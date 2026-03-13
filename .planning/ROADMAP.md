@@ -19,7 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 5: Widget Core Flow** - Embeddable widget loads a session, collects responses step-by-step, and reaches completion state
 - [ ] **Phase 6: Widget Voice + Security** - Voice/form hybrid works in the same session and widget validates its embedding origin
 - [ ] **Phase 7: Rate Limiting + Structured Logging** - Production-grade rate limiting replaces the broken in-memory store; pino logs replace console.error everywhere
-- [ ] **Phase 8: Realtime Dashboard** - Admin dashboard updates in realtime without page refresh via Supabase Broadcast
+- [ ] **Phase 8: Realtime Dashboard** - Admin dashboard updates in realtime without page refresh via Supabase Postgres Changes
 
 ## Phase Details
 
@@ -145,7 +145,11 @@ Plans:
   1. When an onboarding session status changes in the database, the sessions list in the admin dashboard updates within 2 seconds without a page reload
   2. When a new escalation is created, it appears in the escalations view in the admin dashboard within 2 seconds without a page reload
   3. Realtime updates are scoped to the logged-in org — an event from org B does not appear in org A's dashboard
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — Migration: add org_id to escalations + backfill + enable supabase_realtime publication (OBS-03)
+- [ ] 08-02-PLAN.md — Realtime client components: useRealtimeTable hook + RealtimeSessions + RealtimeEscalations + RealtimeDashboard (OBS-03)
 
 ## Progress
 
@@ -163,4 +167,4 @@ Note: Phase 5 depends on Phase 3 (service definitions drive widget steps). Phase
 | 5. Widget Core Flow | 0/3 | Not started | - |
 | 6. Widget Voice + Security | 0/2 | Not started | - |
 | 7. Rate Limiting + Structured Logging | 1/3 | In Progress | - |
-| 8. Realtime Dashboard | 0/TBD | Not started | - |
+| 8. Realtime Dashboard | 0/2 | Not started | - |
