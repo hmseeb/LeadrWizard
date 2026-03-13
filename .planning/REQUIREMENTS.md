@@ -10,8 +10,8 @@ Requirements for production launch. Each maps to roadmap phases.
 ### Security Hardening
 
 - [ ] **SEC-01**: Stripe webhook endpoint verifies signature using `stripe.webhooks.constructEvent()` before processing any event
-- [ ] **SEC-02**: Payment and Stripe webhook handlers check idempotency key (event.id) against processed_webhook_events table and skip duplicates
-- [ ] **SEC-03**: Anonymous RLS policies (`sessions_anon_insert`, `sessions_anon_update`, `responses_anon_insert`) removed and replaced with org_id-scoped server-side validation
+- [x] **SEC-02**: Payment and Stripe webhook handlers check idempotency key (event.id) against processed_webhook_events table and skip duplicates
+- [x] **SEC-03**: Anonymous RLS policies (`sessions_anon_insert`, `sessions_anon_update`, `responses_anon_insert`) removed and replaced with org_id-scoped server-side validation
 - [ ] **SEC-04**: Payment webhook `body.org_id` fallback removed. Org resolution requires valid API key or webhook signature only
 - [ ] **SEC-05**: Widget response submission routes through authenticated API endpoint (`POST /api/widget/response`) instead of direct anonymous Supabase inserts
 - [ ] **SEC-06**: Rate limiting applied to all public webhook endpoints and widget API using Upstash Redis (replacing broken in-memory rate limiter)
@@ -44,7 +44,7 @@ Requirements for production launch. Each maps to roadmap phases.
 
 - [ ] **ORG-01**: Each org gets a dedicated Twilio phone number provisioned at signup, used for all outreach instead of shared pool
 - [ ] **ORG-02**: Each org stores its own GHL API credentials (encrypted), used for CRM operations instead of shared global key
-- [ ] **ORG-03**: Payment handler uses atomic transaction (plpgsql function) to prevent orphaned records on partial provisioning failure
+- [x] **ORG-03**: Payment handler uses atomic transaction (plpgsql function) to prevent orphaned records on partial provisioning failure
 - [ ] **ORG-04**: Failed service tasks (5+ failures) moved to dead letter queue table with admin UI to view and retry
 
 ### Observability
@@ -75,8 +75,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | SEC-01 | Phase 1 | Pending |
-| SEC-02 | Phase 1 | Pending |
-| SEC-03 | Phase 1 | Pending |
+| SEC-02 | Phase 1 | Complete |
+| SEC-03 | Phase 1 | Complete |
 | SEC-04 | Phase 1 | Pending |
 | SEC-05 | Phase 1 | Pending |
 | SEC-06 | Phase 7 | Pending |
@@ -97,7 +97,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WIDG-06 | Phase 6 | Pending |
 | ORG-01 | Phase 4 | Pending |
 | ORG-02 | Phase 4 | Pending |
-| ORG-03 | Phase 1 | Pending |
+| ORG-03 | Phase 1 | Complete |
 | ORG-04 | Phase 4 | Pending |
 | OBS-01 | Phase 7 | Pending |
 | OBS-02 | Phase 7 | Pending |

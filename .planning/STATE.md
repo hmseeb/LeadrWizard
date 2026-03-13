@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 ## Current Position
 
 Phase: 1 of 8 (Security Foundation)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-03-13 — Roadmap created, all 28 requirements mapped across 8 phases
+Plan: 1 of 5 in current phase
+Status: In progress
+Last activity: 2026-03-13 — Completed plan 01-01 (DB migrations: webhook idempotency table + RLS hardening + provision_client)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 5%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: —
-- Total execution time: —
+- Total plans completed: 1
+- Average duration: 2 min
+- Total execution time: 2 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01-security-foundation | 1 | 2 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: —
+- Last 5 plans: 01-01 (2 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -47,6 +47,9 @@ Recent decisions affecting current work:
 - [Roadmap]: ORG-03 (atomic payment handler) placed in Phase 1 — it prevents orphaned records on the same failure surface as the other security fixes
 - [Roadmap]: ORG-04 (dead letter queue) placed in Phase 4 — admin UI for DLQ belongs alongside other org operational controls
 - [Roadmap]: Phase 7 depends on Phase 1, not Phase 6 — rate limiting and logging can run after security foundation regardless of widget progress
+- [01-01]: provision_client placed in 00005 alongside RLS hardening — both security foundational, single migration boundary
+- [01-01]: No RLS on processed_webhook_events — service role only, RLS overhead with zero security benefit
+- [01-01]: interactions_valid_session_insert uses session_id EXISTS check for consistency with response insert pattern
 
 ### Pending Todos
 
@@ -62,5 +65,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-13
-Stopped at: Roadmap created. REQUIREMENTS.md traceability updated. Ready to plan Phase 1.
+Stopped at: Completed 01-01-PLAN.md (DB migrations: idempotency table + RLS hardening + provision_client function)
 Resume file: None

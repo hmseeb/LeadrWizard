@@ -37,7 +37,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 5 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — DB migrations: idempotency table + RLS hardening + provision_client function
+- [x] 01-01-PLAN.md — DB migrations: idempotency table + RLS hardening + provision_client function
 - [ ] 01-02-PLAN.md — Install stripe SDK + refactor stripe-adapter.ts to use SDK client
 - [ ] 01-03-PLAN.md — Stripe webhook signature verification (SEC-01) + idempotency in both webhooks (SEC-02) + remove body.org_id fallback (SEC-04)
 - [ ] 01-04-PLAN.md — Atomic payment handler via supabase.rpc('provision_client') (ORG-03)
@@ -125,7 +125,7 @@ Note: Phase 5 depends on Phase 3 (service definitions drive widget steps). Phase
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Security Foundation | 0/5 | Not started | - |
+| 1. Security Foundation | 1/5 | In progress | - |
 | 2. Self-Service Signup | 0/TBD | Not started | - |
 | 3. Admin CRUD: Content | 0/TBD | Not started | - |
 | 4. Org Settings + Per-Org Isolation | 0/TBD | Not started | - |
