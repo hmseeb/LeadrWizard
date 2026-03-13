@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Core value:** Clients get onboarded without human intervention. The agent asks the right questions through the right channel at the right time, and services get set up automatically.
-**Current focus:** Phase 5 — Widget Core Flow
+**Current focus:** Phase 6 — Widget Voice + Security
 
 ## Current Position
 
-Phase: 5 of 8 (Widget Core Flow) -- COMPLETE
-Plan: 3 of 3 in current phase
-Status: Phase Complete
-Last activity: 2026-03-14 — Completed plan 05-03 (widget component UI)
+Phase: 6 of 8 (Widget Voice + Security)
+Plan: 2 of 2 in current phase
+Status: In Progress
+Last activity: 2026-03-14 — Completed plan 06-02 (widget origin validation)
 
-Progress: [████████████████████] 79%
+Progress: [█████████████████████] 83%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 19
+- Total plans completed: 20
 - Average duration: 4 min
-- Total execution time: 71 min
+- Total execution time: 72 min
 
 **By Phase:**
 
@@ -32,12 +32,14 @@ Progress: [████████████████████] 79%
 | 03-admin-crud-content | 4 | 14 min | 4 min |
 | 04-org-settings-isolation | 4 | 15 min | 4 min |
 | 05-widget-core-flow | 3 | 9 min | 3 min |
+| 06-widget-voice-security | 1 | 1 min | 1 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-03 (3 min), 04-02 (6 min), 05-01 (3 min), 05-02 (3 min), 05-03 (3 min)
+- Last 5 plans: 04-02 (6 min), 05-01 (3 min), 05-02 (3 min), 05-03 (3 min), 06-02 (1 min)
 - Trend: —
 
 *Updated after each plan completion*
+| Phase 06-01 P01 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -126,6 +128,8 @@ Recent decisions affecting current work:
 - [05-03]: Voice toggle and VoiceBot removed from WizardWidget rendering but component files preserved for Phase 6
 - [05-03]: Completion screen shows next-steps section with 3 bullet points explaining post-onboarding flow
 - [05-03]: ProgressBar unchanged from 05-02: already uses flat ServiceWithProgress shape
+- [06-02]: Three-tier origin detection: ancestorOrigins (Chromium) > document.referrer (Firefox) > window.location.origin (direct script tag)
+- [06-02]: Validation runs before any DOM manipulation or React mounting to prevent flash of content on unauthorized domains
 
 ### Pending Todos
 
@@ -140,5 +144,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 05-03-PLAN.md (widget component UI) — Phase 5 complete
+Stopped at: Completed 06-02-PLAN.md (widget origin validation)
 Resume file: None

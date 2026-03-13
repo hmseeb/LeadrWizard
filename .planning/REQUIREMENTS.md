@@ -38,7 +38,7 @@ Requirements for production launch. Each maps to roadmap phases.
 - [x] **WIDG-03**: Widget submits responses per step via authenticated API route, advances to next step on success
 - [x] **WIDG-04**: Widget shows completion state with next-steps messaging after all required fields collected
 - [x] **WIDG-05**: Widget handles errors per step with retry (3 attempts, exponential backoff) and fallback message if all fail
-- [ ] **WIDG-06**: Widget supports optional `allowedOrigins` parameter in `init()` to prevent embedding on unauthorized domains
+- [x] **WIDG-06**: Widget supports optional `allowedOrigins` parameter in `init()` to prevent embedding on unauthorized domains
 
 ### Per-Org Isolation
 
@@ -94,7 +94,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WIDG-03 | Phase 5 | Complete |
 | WIDG-04 | Phase 5 | Complete |
 | WIDG-05 | Phase 5 | Complete |
-| WIDG-06 | Phase 6 | Pending |
+| WIDG-06 | Phase 6 | Complete |
 | ORG-01 | Phase 4 | Complete |
 | ORG-02 | Phase 4 | Complete |
 | ORG-03 | Phase 1 | Complete |
