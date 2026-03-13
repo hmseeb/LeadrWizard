@@ -228,12 +228,19 @@ Every variable, what it's for, and where to get it:
 | `VERCEL_TOKEN` | API token | vercel.com/account/tokens |
 | `VERCEL_TEAM_ID` | Team/org ID (optional) | Vercel team settings |
 
+### Stripe (Required for billing)
+| Variable | Description | Where to get |
+|----------|-------------|-------------|
+| `STRIPE_SECRET_KEY` | Secret key (starts with `sk_test_` or `sk_live_`) | Stripe Dashboard → Developers → API Keys |
+| `STRIPE_WEBHOOK_SECRET` | Webhook signing secret (starts with `whsec_`) | Stripe Dashboard → Developers → Webhooks → endpoint signing secret |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Publishable key (starts with `pk_test_` or `pk_live_`) | Stripe Dashboard → Developers → API Keys |
+
 ### Application
 | Variable | Description | Where to get |
 |----------|-------------|-------------|
 | `NEXT_PUBLIC_WIDGET_URL` | URL where widget is hosted | Your deployment URL |
 | `CRON_SECRET` | Bearer token for cron endpoints | Generate a random string |
-| `PAYMENT_WEBHOOK_SECRET` | HMAC-SHA256 signing key (optional) | Your payment provider |
+| `PAYMENT_WEBHOOK_SECRET` | HMAC-SHA256 signing key (optional) | Legacy/generic webhook signing key |
 
 ### Notifications (At least one required for escalations)
 | Variable | Description | Where to get |
@@ -606,7 +613,23 @@ Full 10DLC registration flow via Twilio Trust Hub:
 - `agent-router.ts` — System prompt generation for voice/SMS handlers
 - Vapi voice calls use Claude Sonnet 4 as the AI backbone
 
-### 10.8 Slack / Google Chat
+### 10.8 Stripe (Billing)
+
+**Environment Variables:** `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+
+Stripe handles payment collection before onboarding begins. The flow:
+1. Client-facing checkout uses `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` for Stripe.js / Checkout
+2. On successful payment, Stripe sends a webhook event
+3. The webhook is verified using `STRIPE_WEBHOOK_SECRET` (via `stripe.webhooks.constructEvent()`)
+4. Verified events trigger `handlePaymentWebhook()` which kicks off the full onboarding flow
+
+**TODO:** The Stripe integration needs to be wired up:
+- Add a `POST /api/webhooks/stripe` route (or update the existing `/api/webhooks/payment` to handle Stripe event format)
+- Use `stripe.webhooks.constructEvent(body, sig, STRIPE_WEBHOOK_SECRET)` for signature verification
+- Handle `checkout.session.completed` events to extract customer + package info
+- Optionally add a Stripe Checkout page or embed Stripe Elements for the client-facing payment UI
+
+### 10.9 Slack / Google Chat
 
 **File:** `automations/escalation-notifier.ts`
 
@@ -756,10 +779,11 @@ supabase db reset          # Migrations + seed
 - [ ] Set `NEXT_PUBLIC_WIDGET_URL` to actual deployment URL
 - [ ] Configure Twilio SMS webhook → `https://your-app/api/webhooks/twilio`
 - [ ] Configure Vapi webhook → `https://your-app/api/webhooks/vapi`
-- [ ] Configure payment webhook → `https://your-app/api/webhooks/payment`
+- [ ] Configure Stripe webhook → `https://your-app/api/webhooks/stripe` (events: `checkout.session.completed`)
+- [ ] Configure payment webhook → `https://your-app/api/webhooks/payment` (if using non-Stripe provider)
 - [ ] Set Supabase `app.settings.base_url` and `app.settings.cron_secret` for pg_cron
 - [ ] Verify cron jobs are running in Supabase dashboard
-- [ ] Test full flow: payment webhook → SMS → widget → task execution
+- [ ] Test full flow: Stripe payment → SMS → widget → task execution
 
 ---
 
@@ -781,7 +805,7 @@ These features have UI shells or partial implementations but are **not yet funct
 | **Reporting/export** | Missing | Analytics are display-only, no CSV/PDF export |
 | **Multi-org support** | Schema ready, UI not | RLS supports multi-tenant but UI assumes single org |
 | **Tests** | Minimal | Vitest configured but test coverage is low |
-| **Payment integration** | Webhook only | No Stripe/payment UI; relies on external payment page sending webhook |
+| **Stripe integration** | Env vars added, needs wiring | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` are in `.env.example`. Need: Stripe webhook route, Checkout/Elements UI, event handling for `checkout.session.completed` |
 
 ---
 
