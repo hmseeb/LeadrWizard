@@ -5,32 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Core value:** Clients get onboarded without human intervention. The agent asks the right questions through the right channel at the right time, and services get set up automatically.
-**Current focus:** Phase 1 — Security Foundation
+**Current focus:** Phase 2 — Self-Service Signup
 
 ## Current Position
 
-Phase: 1 of 8 (Security Foundation)
-Plan: 5 of 5 in current phase (phase complete)
+Phase: 2 of 8 (Self-Service Signup)
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-03-14 — Completed plan 01-05 (authenticated widget response API route + widget hook refactor)
+Last activity: 2026-03-14 — Completed plan 02-01 (provision_org atomic org provisioning function)
 
-Progress: [█████░░░░░] 25%
+Progress: [██████░░░░] 30%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 5 min
-- Total execution time: 25 min
+- Total plans completed: 6
+- Average duration: 4 min
+- Total execution time: 26 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-security-foundation | 5 | 25 min | 5 min |
+| 02-self-service-signup | 1 | 1 min | 1 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2 min), 01-02 (9 min), 01-03 (3 min), 01-04 (3 min), 01-05 (8 min)
+- Last 5 plans: 01-02 (9 min), 01-03 (3 min), 01-04 (3 min), 01-05 (8 min), 02-01 (1 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -64,6 +65,10 @@ Recent decisions affecting current work:
 - [Phase 01-05]: apiBaseUrl defaults to empty string so fetch() is relative URL in dev (same-origin)
 - [Phase 01-05]: interaction_log insert moved fully server-side — widget never touches interaction_log directly
 - [Phase 01-05]: org_id and client_id resolved from server-validated session — never trusted from client request body
+- [02-01]: provision_org follows provision_client pattern from 00005 for consistency
+- [02-01]: Idempotent on stripe_customer_id to handle webhook retries safely
+- [02-01]: 30-day hardcoded initial period, updated by customer.subscription.updated event
+- [02-01]: Slug collision appends random 6-char suffix; empty slugs get generated fallback
 
 ### Pending Todos
 
@@ -79,5 +84,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 01-05-PLAN.md (authenticated widget response API route + widget hook refactor)
+Stopped at: Completed 02-01-PLAN.md (provision_org atomic org provisioning function)
 Resume file: None

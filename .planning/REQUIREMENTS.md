@@ -18,7 +18,7 @@ Requirements for production launch. Each maps to roadmap phases.
 
 ### Self-Service Signup
 
-- [ ] **SIGN-01**: Agency completes Stripe checkout and org is auto-provisioned (org record + membership + subscription) via `checkout.session.completed` webhook
+- [x] **SIGN-01**: Agency completes Stripe checkout and org is auto-provisioned (org record + membership + subscription) via `checkout.session.completed` webhook
 - [ ] **SIGN-02**: New org admin receives welcome email with link to set password and access dashboard
 - [ ] **SIGN-03**: New org dashboard shows empty state with setup wizard guiding through: add services, configure package, set up integrations
 - [ ] **SIGN-04**: Stripe CLI configured for local webhook testing with forwarding to dev server
@@ -80,7 +80,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-04 | Phase 1 | Complete |
 | SEC-05 | Phase 1 | Complete |
 | SEC-06 | Phase 7 | Pending |
-| SIGN-01 | Phase 2 | Pending |
+| SIGN-01 | Phase 2 | Complete |
 | SIGN-02 | Phase 2 | Pending |
 | SIGN-03 | Phase 2 | Pending |
 | SIGN-04 | Phase 2 | Pending |

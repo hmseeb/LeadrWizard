@@ -55,7 +55,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Database migration: provision_org plpgsql function for atomic org + subscription creation (SIGN-01)
+- [x] 02-01-PLAN.md — Database migration: provision_org plpgsql function for atomic org + subscription creation (SIGN-01)
 - [ ] 02-02-PLAN.md — Public checkout endpoint + webhook new-signup branch + Supabase auth invite (SIGN-01, SIGN-02, SIGN-04)
 - [ ] 02-03-PLAN.md — Empty-state setup wizard on dashboard + signup success page (SIGN-03)
 
@@ -130,8 +130,8 @@ Note: Phase 5 depends on Phase 3 (service definitions drive widget steps). Phase
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Security Foundation | 4/5 | Complete    | 2026-03-13 |
-| 2. Self-Service Signup | 0/3 | Not started | - |
+| 1. Security Foundation | 5/5 | Complete    | 2026-03-13 |
+| 2. Self-Service Signup | 1/3 | In progress | - |
 | 3. Admin CRUD: Content | 0/TBD | Not started | - |
 | 4. Org Settings + Per-Org Isolation | 0/TBD | Not started | - |
 | 5. Widget Core Flow | 0/TBD | Not started | - |
