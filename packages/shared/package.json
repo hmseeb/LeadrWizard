@@ -13,7 +13,8 @@
     "./comms": "./src/comms/index.ts",
     "./utils": "./src/utils/index.ts",
     "./billing": "./src/billing/index.ts",
-    "./tenant": "./src/tenant/index.ts"
+    "./tenant": "./src/tenant/index.ts",
+    "./crypto": "./src/crypto/index.ts"
   },
   "scripts": {
     "build": "tsc",
