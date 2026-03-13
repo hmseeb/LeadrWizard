@@ -147,6 +147,58 @@ export async function createCheckoutSession(
 }
 
 /**
+ * Creates a Stripe Checkout session for a NEW agency signup.
+ * Unlike createCheckoutSession, this does NOT require an existing org or auth.
+ * The metadata.signup flag tells the webhook handler to provision a new org.
+ */
+export async function createSignupCheckoutSession(
+  supabase: SupabaseClient,
+  planSlug: string,
+  email: string,
+  orgName: string,
+  successUrl: string,
+  cancelUrl: string
+): Promise<{ checkoutUrl: string; sessionId: string }> {
+  // Validate plan exists and has a Stripe price ID
+  const { data: plan } = await supabase
+    .from("subscription_plans")
+    .select("*")
+    .eq("slug", planSlug)
+    .eq("is_active", true)
+    .single();
+
+  if (!plan || !(plan as SubscriptionPlan).stripe_price_id) {
+    throw new Error(`Plan "${planSlug}" not found or not configured with Stripe price`);
+  }
+
+  const stripe = getStripeClient();
+
+  const session = await stripe.checkout.sessions.create({
+    mode: "subscription",
+    customer_email: email,
+    line_items: [
+      {
+        price: (plan as SubscriptionPlan).stripe_price_id!,
+        quantity: 1,
+      },
+    ],
+    metadata: {
+      signup: "true",
+      org_name: orgName,
+      admin_email: email,
+      plan_slug: planSlug,
+    },
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+  });
+
+  return {
+    checkoutUrl: session.url as string,
+    sessionId: session.id,
+  };
+}
+
+/**
  * Creates a Stripe Billing Portal session for managing subscriptions.
  */
 export async function createBillingPortalSession(
