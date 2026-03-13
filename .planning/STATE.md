@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 
 ## Current Position
 
-Phase: 5 of 8 (Widget Core Flow)
-Plan: 2 of 3 in current phase
-Status: Executing
-Last activity: 2026-03-14 — Completed plan 05-02 (widget hook refactor)
+Phase: 5 of 8 (Widget Core Flow) -- COMPLETE
+Plan: 3 of 3 in current phase
+Status: Phase Complete
+Last activity: 2026-03-14 — Completed plan 05-03 (widget component UI)
 
-Progress: [████████████████] 75%
+Progress: [████████████████████] 79%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18
+- Total plans completed: 19
 - Average duration: 4 min
-- Total execution time: 68 min
+- Total execution time: 71 min
 
 **By Phase:**
 
@@ -31,10 +31,10 @@ Progress: [████████████████] 75%
 | 02-self-service-signup | 3 | 8 min | 3 min |
 | 03-admin-crud-content | 4 | 14 min | 4 min |
 | 04-org-settings-isolation | 4 | 15 min | 4 min |
-| 05-widget-core-flow | 2 | 6 min | 3 min |
+| 05-widget-core-flow | 3 | 9 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-04 (3 min), 04-03 (3 min), 04-02 (6 min), 05-01 (3 min), 05-02 (3 min)
+- Last 5 plans: 04-03 (3 min), 04-02 (6 min), 05-01 (3 min), 05-02 (3 min), 05-03 (3 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -123,6 +123,9 @@ Recent decisions affecting current work:
 - [05-02]: Default mode changed from 'voice' to 'visual': voice is Phase 6 scope
 - [05-02]: stepError displays user-friendly message after all retry attempts fail, clearable via clearStepError callback
 - [05-02]: withRetry is a standalone generic utility: clean, testable, no framework dependencies
+- [05-03]: Voice toggle and VoiceBot removed from WizardWidget rendering but component files preserved for Phase 6
+- [05-03]: Completion screen shows next-steps section with 3 bullet points explaining post-onboarding flow
+- [05-03]: ProgressBar unchanged from 05-02: already uses flat ServiceWithProgress shape
 
 ### Pending Todos
 
@@ -137,5 +140,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 05-02-PLAN.md (widget hook refactor)
+Stopped at: Completed 05-03-PLAN.md (widget component UI) — Phase 5 complete
 Resume file: None
