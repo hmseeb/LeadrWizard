@@ -65,6 +65,27 @@ export async function POST(request: Request) {
       }
     }
 
+    // Idempotency: check if this payment_ref was already processed
+    const paymentRef = body.payment_ref || body.id;
+    if (paymentRef) {
+      const { data: existing } = await supabase
+        .from("processed_webhook_events")
+        .select("id")
+        .eq("id", String(paymentRef))
+        .maybeSingle();
+
+      if (existing) {
+        return NextResponse.json({ received: true, duplicate: true }); // 200, not 4xx
+      }
+
+      await supabase
+        .from("processed_webhook_events")
+        .upsert(
+          { id: String(paymentRef), source: "payment" },
+          { onConflict: "id", ignoreDuplicates: true }
+        );
+    }
+
     const result = await handlePaymentWebhook(supabase, orgId, payload);
 
     return NextResponse.json({
@@ -83,7 +104,8 @@ export async function POST(request: Request) {
 
 /**
  * Resolves the org_id from the request.
- * Priority: Authorization Bearer token -> X-API-Key header -> body.org_id fallback.
+ * Priority: Authorization Bearer token -> X-API-Key header -> X-Internal-Secret header (dev only).
+ * The request body is never trusted for org resolution — prevents account takeover.
  */
 async function resolveOrgId(
   supabase: ReturnType<typeof createServerClient>,
@@ -110,9 +132,16 @@ async function resolveOrgId(
     }
   }
 
-  // Fallback: explicit org_id in the body (for testing / trusted internal calls)
-  if (typeof body.org_id === "string" && body.org_id) {
-    return body.org_id;
+  // Internal secret for testing (dev only) — env var gated, not body-based
+  const internalSecret = request.headers.get("x-internal-secret");
+  if (
+    internalSecret &&
+    process.env.INTERNAL_WEBHOOK_SECRET &&
+    internalSecret === process.env.INTERNAL_WEBHOOK_SECRET
+  ) {
+    // For internal testing, require explicit org_id in a header, not body
+    const headerOrgId = request.headers.get("x-org-id");
+    if (headerOrgId) return headerOrgId;
   }
 
   return null;
