@@ -51,7 +51,7 @@ Requirements for production launch. Each maps to roadmap phases.
 
 - [x] **OBS-01**: Structured JSON logging via pino with correlation_id, org_id, session_id on every log line, replacing all console.error calls
 - [x] **OBS-02**: Sentry error tracking integrated with org_id and session_id enrichment tags
-- [ ] **OBS-03**: Dashboard updates in realtime via Supabase Broadcast subscriptions for onboarding_sessions and escalations
+- [x] **OBS-03**: Dashboard updates in realtime via Supabase Broadcast subscriptions for onboarding_sessions and escalations
 
 ## Out of Scope
 
@@ -101,7 +101,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ORG-04 | Phase 4 | Complete |
 | OBS-01 | Phase 7 | Complete |
 | OBS-02 | Phase 7 | Complete |
-| OBS-03 | Phase 8 | Pending |
+| OBS-03 | Phase 8 | Complete |
 
 **Coverage:**
 - Launch requirements: 28 total
