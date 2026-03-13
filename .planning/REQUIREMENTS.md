@@ -42,8 +42,8 @@ Requirements for production launch. Each maps to roadmap phases.
 
 ### Per-Org Isolation
 
-- [ ] **ORG-01**: Each org gets a dedicated Twilio phone number provisioned at signup, used for all outreach instead of shared pool
-- [ ] **ORG-02**: Each org stores its own GHL API credentials (encrypted), used for CRM operations instead of shared global key
+- [x] **ORG-01**: Each org gets a dedicated Twilio phone number provisioned at signup, used for all outreach instead of shared pool
+- [x] **ORG-02**: Each org stores its own GHL API credentials (encrypted), used for CRM operations instead of shared global key
 - [x] **ORG-03**: Payment handler uses atomic transaction (plpgsql function) to prevent orphaned records on partial provisioning failure
 - [x] **ORG-04**: Failed service tasks (5+ failures) moved to dead letter queue table with admin UI to view and retry
 
@@ -95,8 +95,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WIDG-04 | Phase 5 | Pending |
 | WIDG-05 | Phase 5 | Pending |
 | WIDG-06 | Phase 6 | Pending |
-| ORG-01 | Phase 4 | Pending |
-| ORG-02 | Phase 4 | Pending |
+| ORG-01 | Phase 4 | Complete |
+| ORG-02 | Phase 4 | Complete |
 | ORG-03 | Phase 1 | Complete |
 | ORG-04 | Phase 4 | Complete |
 | OBS-01 | Phase 7 | Pending |

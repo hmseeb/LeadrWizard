@@ -19,9 +19,9 @@ Progress: [██████████████] 68%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15
+- Total plans completed: 16
 - Average duration: 4 min
-- Total execution time: 56 min
+- Total execution time: 62 min
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [██████████████] 68%
 | 01-security-foundation | 5 | 25 min | 5 min |
 | 02-self-service-signup | 3 | 8 min | 3 min |
 | 03-admin-crud-content | 4 | 14 min | 4 min |
-| 04-org-settings-isolation | 3 | 9 min | 3 min |
+| 04-org-settings-isolation | 4 | 15 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-03 (3 min), 03-04 (4 min), 04-01 (3 min), 04-04 (3 min), 04-03 (3 min)
+- Last 5 plans: 03-04 (4 min), 04-01 (3 min), 04-04 (3 min), 04-03 (3 min), 04-02 (6 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -110,6 +110,10 @@ Recent decisions affecting current work:
 - [04-03]: Cadence display is read-only for v1, editing deferred to future phase
 - [04-03]: Provision number button appears only after Twilio creds saved
 - [04-03]: Dynamic import for provisionTwilioNumber to avoid pulling automations into admin bundle
+- [04-02]: Optional orgConfig parameter pattern: adapters accept per-org creds as last optional param, fall back to env vars when absent
+- [04-02]: getOrgCredentials returns empty object when org has no credentials, enabling graceful fallback
+- [04-02]: Twilio provisioner uses raw REST API (no SDK) consistent with existing twilio-sms.ts pattern
+- [04-02]: Config functions (getTwilioConfig, getGHLConfig, getVapiConfig) exported for direct use by settings UI
 
 ### Pending Todos
 
@@ -124,5 +128,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 04-03-PLAN.md (org settings UI)
+Stopped at: Completed 04-02-PLAN.md (per-org credential isolation)
 Resume file: None
