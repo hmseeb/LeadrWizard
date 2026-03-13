@@ -19,7 +19,9 @@ import { createRouteLogger } from "@leadrwizard/shared/utils";
  */
 export async function POST(request: Request) {
   const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
-  const log = createRouteLogger("webhooks/payment", { correlation_id: correlationId });
+  let log = createRouteLogger("webhooks/payment", { correlation_id: correlationId });
+  let orgId: string | null = null;
+  let sessionId: string | undefined;
 
   try {
     const body = await request.json();
@@ -27,7 +29,7 @@ export async function POST(request: Request) {
     const supabase = createServerClient();
 
     // Resolve org_id from API key header or request body
-    const orgId = await resolveOrgId(supabase, request, body);
+    orgId = await resolveOrgId(supabase, request, body);
 
     if (!orgId) {
       return NextResponse.json(
@@ -35,6 +37,9 @@ export async function POST(request: Request) {
         { status: 401 }
       );
     }
+
+    // Enrich logger with org context
+    log = log.child({ org_id: orgId });
 
     const payload: PaymentWebhookPayload = {
       customer_name: body.customer_name,
@@ -92,6 +97,7 @@ export async function POST(request: Request) {
     }
 
     const result = await handlePaymentWebhook(supabase, orgId, payload);
+    sessionId = result.session.id;
 
     return NextResponse.json({
       success: true,
@@ -102,6 +108,8 @@ export async function POST(request: Request) {
     log.error({ err: error }, "Payment webhook error");
     Sentry.withScope((scope) => {
       scope.setTag("correlation_id", correlationId);
+      if (orgId) scope.setTag("org_id", orgId);
+      if (sessionId) scope.setTag("session_id", sessionId);
       Sentry.captureException(error);
     });
     return NextResponse.json(

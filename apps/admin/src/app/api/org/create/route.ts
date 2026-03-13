@@ -9,7 +9,8 @@ import { createRouteLogger } from "@leadrwizard/shared/utils";
  */
 export async function POST(request: Request) {
   const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
-  const log = createRouteLogger("org/create", { correlation_id: correlationId });
+  let log = createRouteLogger("org/create", { correlation_id: correlationId });
+  let orgId: string | undefined;
 
   try {
     const supabase = await createSupabaseServerClient();
@@ -51,6 +52,10 @@ export async function POST(request: Request) {
       ownerEmail: user.email || "",
     });
 
+    orgId = result.org.id;
+    // Enrich logger with newly created org
+    log = log.child({ org_id: orgId });
+
     return NextResponse.json({
       org: result.org,
       membership: result.membership,
@@ -59,6 +64,7 @@ export async function POST(request: Request) {
     log.error({ err: error }, "Org creation error");
     Sentry.withScope((scope) => {
       scope.setTag("correlation_id", correlationId);
+      if (orgId) scope.setTag("org_id", orgId);
       Sentry.captureException(error);
     });
     return NextResponse.json(

@@ -27,11 +27,14 @@ export async function OPTIONS() {
 
 export async function POST(request: Request) {
   const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
-  const log = createRouteLogger("widget/response", { correlation_id: correlationId });
+  let log = createRouteLogger("widget/response", { correlation_id: correlationId });
+  let orgId: string | undefined;
+  let sessionId: string | undefined;
 
   try {
     const body = await request.json();
-    const { sessionId, fieldKey, fieldValue, clientServiceId, answeredVia, clientId } = body;
+    ({ sessionId } = body);
+    const { fieldKey, fieldValue, clientServiceId, answeredVia, clientId } = body;
 
     if (!sessionId || !fieldKey || fieldValue === undefined) {
       return NextResponse.json(
@@ -57,6 +60,10 @@ export async function POST(request: Request) {
         { status: 404, headers: corsHeaders }
       );
     }
+
+    orgId = session.org_id as string;
+    // Enrich logger with resolved context
+    log = log.child({ org_id: orgId, session_id: sessionId });
 
     // Insert response — org_id resolved server-side, never trusted from client body
     const { error: insertError } = await supabase.from("session_responses").insert({
@@ -150,6 +157,8 @@ export async function POST(request: Request) {
     log.error({ err: error }, "Widget response error");
     Sentry.withScope((scope) => {
       scope.setTag("correlation_id", correlationId);
+      if (orgId) scope.setTag("org_id", orgId);
+      if (sessionId) scope.setTag("session_id", sessionId);
       Sentry.captureException(error);
     });
     return NextResponse.json(

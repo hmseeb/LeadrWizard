@@ -35,14 +35,16 @@ interface ServiceWithProgress {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
-  const correlationId = crypto.randomUUID();
-  const log = createRouteLogger("widget/session", { correlation_id: correlationId });
+  const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+  let log = createRouteLogger("widget/session", { correlation_id: correlationId });
+  let sessionId: string | undefined;
+  let orgId: string | undefined;
 
   try {
-    const { sessionId } = await params;
+    ({ sessionId } = await params);
 
     if (!sessionId) {
       return NextResponse.json(
@@ -67,6 +69,10 @@ export async function GET(
         { status: 404, headers: corsHeaders }
       );
     }
+
+    orgId = session.org_id as string;
+    // Enrich logger with resolved context
+    log = log.child({ org_id: orgId, session_id: sessionId });
 
     // Load org voice config
     const { data: org } = await supabase
@@ -216,6 +222,8 @@ export async function GET(
     log.error({ err: error }, "Widget session load error");
     Sentry.withScope((scope) => {
       scope.setTag("correlation_id", correlationId);
+      if (orgId) scope.setTag("org_id", orgId);
+      if (sessionId) scope.setTag("session_id", sessionId);
       Sentry.captureException(error);
     });
     return NextResponse.json(

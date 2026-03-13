@@ -8,9 +8,10 @@ import { createRouteLogger } from "@leadrwizard/shared/utils";
 /**
  * Creates a Stripe Billing Portal session for managing subscriptions.
  */
-export async function POST() {
-  const correlationId = crypto.randomUUID();
-  const log = createRouteLogger("billing/portal", { correlation_id: correlationId });
+export async function POST(request: Request) {
+  const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+  let log = createRouteLogger("billing/portal", { correlation_id: correlationId });
+  let orgId: string | undefined;
 
   try {
     const supabase = await createSupabaseServerClient();
@@ -27,6 +28,10 @@ export async function POST() {
       return NextResponse.json({ error: "No organization found" }, { status: 400 });
     }
 
+    orgId = orgData.org.id;
+    // Enrich logger with org context
+    log = log.child({ org_id: orgId });
+
     const baseUrl = process.env.NEXT_PUBLIC_WIDGET_URL?.replace("/onboard", "") || "";
     const portalUrl = await createBillingPortalSession(
       supabase,
@@ -39,6 +44,7 @@ export async function POST() {
     log.error({ err: error }, "Portal error");
     Sentry.withScope((scope) => {
       scope.setTag("correlation_id", correlationId);
+      if (orgId) scope.setTag("org_id", orgId);
       Sentry.captureException(error);
     });
     return NextResponse.json(
