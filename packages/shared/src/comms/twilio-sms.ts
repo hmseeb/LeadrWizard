@@ -33,7 +33,17 @@ export interface InboundSMS {
   mediaUrls: string[];
 }
 
-function getTwilioConfig(): TwilioConfig {
+export function getTwilioConfig(
+  orgConfig?: { accountSid: string; authToken: string; phoneNumber: string }
+): TwilioConfig {
+  if (orgConfig) {
+    return {
+      accountSid: orgConfig.accountSid,
+      authToken: orgConfig.authToken,
+      fromNumber: orgConfig.phoneNumber,
+    };
+  }
+  // Fallback to env vars (backward compat)
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   const fromNumber = process.env.TWILIO_PHONE_NUMBER;
@@ -53,9 +63,10 @@ function getTwilioConfig(): TwilioConfig {
  */
 export async function sendSMS(
   supabase: SupabaseClient,
-  params: SendSMSParams
+  params: SendSMSParams,
+  orgConfig?: { accountSid: string; authToken: string; phoneNumber: string }
 ): Promise<SendSMSResult> {
-  const config = getTwilioConfig();
+  const config = getTwilioConfig(orgConfig);
 
   const url = `https://api.twilio.com/2010-04-01/Accounts/${config.accountSid}/Messages.json`;
 
@@ -191,9 +202,10 @@ export async function logInboundSMS(
 export async function validateTwilioSignature(
   signature: string,
   url: string,
-  params: Record<string, string>
+  params: Record<string, string>,
+  orgConfig?: { accountSid: string; authToken: string; phoneNumber: string }
 ): Promise<boolean> {
-  const config = getTwilioConfig();
+  const config = getTwilioConfig(orgConfig);
 
   // Build the data string: URL + sorted params
   const sortedKeys = Object.keys(params).sort();

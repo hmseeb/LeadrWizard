@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "../supabase/client";
-import type { OutreachQueueItem, Client, OnboardingSession } from "../types";
+import type { OutreachQueueItem, Client, OnboardingSession, OrgCredentials } from "../types";
 import { sendSMS } from "./twilio-sms";
 import { initiateOutboundCall } from "./vapi-calls";
 import { sendEmail, emailTemplates } from "./ghl-email";
@@ -7,6 +7,7 @@ import { resolveTemplate, type TemplateParams } from "./message-templates";
 import { scheduleNextFollowUp, cancelPendingOutreach } from "../automations/outreach-scheduler";
 import { contextToSystemPrompt, buildAgentContext } from "../agent/agent-context";
 import { checkCompletion, getMissingSummary } from "../agent/completion-checker";
+import { getOrgCredentials } from "../tenant/org-manager";
 
 /**
  * Processes pending items in the outreach queue.
@@ -102,6 +103,10 @@ async function processOutreachItem(
   }
 
   const typedClient = client as Client;
+
+  // Resolve per-org credentials
+  const orgCreds = await getOrgCredentials(supabase, typedClient.org_id);
+
   const onboardingUrl = `${process.env.NEXT_PUBLIC_WIDGET_URL || "https://app.leadrwizard.com/onboard"}?session=${item.session_id || ""}`;
 
   const templateParams: TemplateParams = {
@@ -125,7 +130,7 @@ async function processOutreachItem(
         body: message,
         clientId: typedClient.id,
         sessionId: item.session_id || undefined,
-      });
+      }, orgCreds.twilio);
       break;
     }
 
@@ -191,7 +196,7 @@ async function processOutreachItem(
           firstMessage: `Hi ${templateParams.name}! This is your setup assistant calling about your ${templateParams.packageName || "services"}. Do you have a few minutes to finish your setup?`,
           systemPrompt,
         },
-      });
+      }, orgCreds.vapi);
       break;
     }
 
@@ -218,7 +223,7 @@ async function processOutreachItem(
         htmlBody: emailContent.html,
         clientId: typedClient.id,
         sessionId: item.session_id || undefined,
-      });
+      }, orgCreds.ghl);
       break;
     }
   }
@@ -262,6 +267,7 @@ export async function handleInboundSMSReply(
 
     if (client?.phone) {
       const typedClient = client as Client;
+      const orgCreds = await getOrgCredentials(supabase, typedClient.org_id);
 
       // Get or find active session
       let activeSessionId = sessionId;
@@ -283,7 +289,7 @@ export async function handleInboundSMSReply(
           assistantOverrides: {
             firstMessage: `Hi ${typedClient.name.split(" ")[0]}! You asked me to call. Ready to finish your setup?`,
           },
-        });
+        }, orgCreds.vapi);
       }
 
       return {

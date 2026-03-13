@@ -45,7 +45,15 @@ export interface VapiCallEndEvent {
   }>;
 }
 
-function getVapiConfig(): VapiConfig {
+export function getVapiConfig(
+  orgConfig?: { apiKey: string; assistantId: string }
+): VapiConfig {
+  if (orgConfig) {
+    return {
+      apiKey: orgConfig.apiKey,
+      assistantId: orgConfig.assistantId,
+    };
+  }
   const apiKey = process.env.VAPI_API_KEY;
   const assistantId = process.env.VAPI_ASSISTANT_ID;
 
@@ -62,9 +70,10 @@ function getVapiConfig(): VapiConfig {
  */
 export async function initiateOutboundCall(
   supabase: SupabaseClient,
-  params: OutboundCallParams
+  params: OutboundCallParams,
+  orgConfig?: { apiKey: string; assistantId: string }
 ): Promise<OutboundCallResult> {
-  const config = getVapiConfig();
+  const config = getVapiConfig(orgConfig);
 
   const requestBody: Record<string, unknown> = {
     assistantId: config.assistantId,
@@ -193,9 +202,10 @@ export async function processCallEndEvent(
  * Get the status of an ongoing or completed Vapi call.
  */
 export async function getCallStatus(
-  callId: string
+  callId: string,
+  orgConfig?: { apiKey: string; assistantId: string }
 ): Promise<{ status: string; duration?: number }> {
-  const config = getVapiConfig();
+  const config = getVapiConfig(orgConfig);
 
   const response = await fetch(`https://api.vapi.ai/call/${callId}`, {
     headers: {

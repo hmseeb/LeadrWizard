@@ -26,7 +26,17 @@ export interface GHLContactResult {
   contact_id: string;
 }
 
-function getGHLConfig(): GHLConfig {
+export function getGHLConfig(
+  orgConfig?: { apiKey: string; locationId: string; companyId?: string }
+): GHLConfig {
+  if (orgConfig) {
+    return {
+      apiKey: orgConfig.apiKey,
+      locationId: orgConfig.locationId,
+      companyId: orgConfig.companyId,
+    };
+  }
+  // Fallback to env vars
   const apiKey = process.env.GHL_API_KEY;
   const locationId = process.env.GHL_LOCATION_ID;
   const companyId = process.env.GHL_COMPANY_ID;
@@ -47,9 +57,10 @@ async function ghlRequest(
     method?: string;
     body?: Record<string, unknown>;
     apiKey?: string;
+    config?: GHLConfig;
   } = {}
 ): Promise<Record<string, unknown>> {
-  const config = getGHLConfig();
+  const config = options.config || getGHLConfig();
   const response = await fetch(`${GHL_API_BASE}${path}`, {
     method: options.method || "GET",
     headers: {
@@ -75,7 +86,8 @@ async function ghlRequest(
 export async function provisionSubAccount(
   supabase: SupabaseClient,
   client: Client,
-  clientServiceId: string
+  clientServiceId: string,
+  orgConfig?: { apiKey: string; locationId: string; companyId?: string }
 ): Promise<ServiceTask> {
   // Create task to track
   const { data: task, error } = await supabase
@@ -98,11 +110,12 @@ export async function provisionSubAccount(
 
   if (error) throw new Error(`Failed to create GHL task: ${error.message}`);
 
-  const config = getGHLConfig();
+  const config = getGHLConfig(orgConfig);
 
   try {
     // 1. Create sub-account (location) under the agency
     const locationResult = await ghlRequest("/locations/", {
+      config,
       method: "POST",
       body: {
         companyId: config.companyId || config.locationId,
@@ -136,6 +149,7 @@ export async function provisionSubAccount(
 
     // 3. Create a contact in the new sub-account
     const contactResult = await ghlRequest("/contacts/", {
+      config,
       method: "POST",
       body: {
         locationId: subAccountId,
@@ -200,7 +214,8 @@ export async function deploySnapshot(
   supabase: SupabaseClient,
   clientServiceId: string,
   subAccountId: string,
-  snapshotId: string
+  snapshotId: string,
+  orgConfig?: { apiKey: string; locationId: string; companyId?: string }
 ): Promise<ServiceTask> {
   const { data: task, error } = await supabase
     .from("service_tasks")
@@ -217,10 +232,13 @@ export async function deploySnapshot(
 
   if (error) throw new Error(`Failed to create snapshot task: ${error.message}`);
 
+  const config = getGHLConfig(orgConfig);
+
   try {
     // Deploy snapshot to the sub-account
     // GHL snapshots are deployed via the Snapshots API
     await ghlRequest(`/snapshots/share/link`, {
+      config,
       method: "POST",
       body: {
         snapshot_id: snapshotId,
@@ -268,7 +286,8 @@ export async function deploySnapshot(
 export async function syncContactToGHL(
   client: Client,
   fieldKey: string,
-  fieldValue: string
+  fieldValue: string,
+  orgConfig?: { apiKey: string; locationId: string; companyId?: string }
 ): Promise<void> {
   if (!client.ghl_contact_id) return;
 
@@ -290,11 +309,14 @@ export async function syncContactToGHL(
 
   const ghlField = fieldMapping[fieldKey];
 
+  const config = getGHLConfig(orgConfig);
+
   if (ghlField) {
     if (ghlField.startsWith("customField.")) {
       // Update custom field
       const customFieldKey = ghlField.replace("customField.", "");
       await ghlRequest(`/contacts/${client.ghl_contact_id}`, {
+        config,
         method: "PUT",
         body: {
           customFields: [{ key: customFieldKey, value: fieldValue }],
@@ -303,6 +325,7 @@ export async function syncContactToGHL(
     } else {
       // Update standard field
       await ghlRequest(`/contacts/${client.ghl_contact_id}`, {
+        config,
         method: "PUT",
         body: { [ghlField]: fieldValue },
       });
@@ -317,7 +340,8 @@ export async function syncContactToGHL(
 export async function customizeSnapshot(
   supabase: SupabaseClient,
   client: Client,
-  responses: Array<{ field_key: string; field_value: string }>
+  responses: Array<{ field_key: string; field_value: string }>,
+  orgConfig?: { apiKey: string; locationId: string; companyId?: string }
 ): Promise<void> {
   if (!client.ghl_sub_account_id || !client.ghl_contact_id) return;
 
@@ -346,8 +370,11 @@ export async function customizeSnapshot(
     }
   }
 
+  const config = getGHLConfig(orgConfig);
+
   // Update contact with all collected data
   await ghlRequest(`/contacts/${client.ghl_contact_id}`, {
+    config,
     method: "PUT",
     body: {
       ...standardFields,

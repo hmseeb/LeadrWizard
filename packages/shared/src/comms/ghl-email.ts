@@ -24,7 +24,15 @@ export interface SendEmailResult {
   messageId: string;
 }
 
-function getGHLConfig(): GHLEmailConfig {
+export function getGHLConfig(
+  orgConfig?: { apiKey: string; locationId: string }
+): GHLEmailConfig {
+  if (orgConfig) {
+    return {
+      apiKey: orgConfig.apiKey,
+      locationId: orgConfig.locationId,
+    };
+  }
   const apiKey = process.env.GHL_API_KEY;
   const locationId = process.env.GHL_LOCATION_ID;
 
@@ -41,9 +49,10 @@ function getGHLConfig(): GHLEmailConfig {
  */
 export async function sendEmail(
   supabase: SupabaseClient,
-  params: SendEmailParams
+  params: SendEmailParams,
+  orgConfig?: { apiKey: string; locationId: string }
 ): Promise<SendEmailResult> {
-  const config = getGHLConfig();
+  const config = getGHLConfig(orgConfig);
 
   // Create or get conversation for this contact
   const response = await fetch(
