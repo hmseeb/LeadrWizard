@@ -1,4 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import Link from "next/link";
+import { PackageActions } from "./package-actions";
 
 export default async function PackagesPage() {
   const supabase = await createSupabaseServerClient();
@@ -8,10 +10,11 @@ export default async function PackagesPage() {
       `
       *,
       package_services(
-        service:service_definitions(name, slug)
+        service:service_definitions(id, name, slug)
       )
     `
     )
+    .eq("is_active", true)
     .order("created_at", { ascending: true });
 
   return (
@@ -23,33 +26,42 @@ export default async function PackagesPage() {
             Bundle services into packages that clients can purchase
           </p>
         </div>
-        <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+        <Link
+          href="/packages/new"
+          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+        >
           Create Package
-        </button>
+        </Link>
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         {packages?.map((pkg) => {
           const services = (pkg.package_services || []) as Array<{
-            service: { name: string; slug: string } | null;
+            service: { id: string; name: string; slug: string } | null;
           }>;
 
           return (
             <div key={pkg.id} className="rounded-lg border bg-white p-6">
               <div className="flex items-start justify-between">
                 <h3 className="text-lg font-semibold">{pkg.name}</h3>
-                {pkg.price_cents && (
-                  <span className="text-lg font-bold text-brand-600">
-                    ${(pkg.price_cents / 100).toFixed(2)}
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {pkg.price_cents != null && (
+                    <span className="text-lg font-bold text-brand-600">
+                      ${(pkg.price_cents / 100).toFixed(2)}
+                    </span>
+                  )}
+                  <PackageActions
+                    packageId={pkg.id}
+                    packageName={pkg.name}
+                  />
+                </div>
               </div>
               {pkg.description && (
                 <p className="mt-2 text-sm text-gray-500">{pkg.description}</p>
               )}
               <div className="mt-4">
                 <p className="text-xs font-medium uppercase text-gray-400">
-                  Included Services
+                  Included Services ({services.length})
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {services.map((ps, i) => (
@@ -60,6 +72,11 @@ export default async function PackagesPage() {
                       {ps.service?.name || "Unknown"}
                     </span>
                   ))}
+                  {services.length === 0 && (
+                    <span className="text-xs text-gray-400">
+                      No services assigned
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -67,7 +84,13 @@ export default async function PackagesPage() {
         })}
         {(!packages || packages.length === 0) && (
           <div className="col-span-2 rounded-lg border bg-white p-8 text-center text-gray-400">
-            No packages created yet.
+            No packages created yet.{" "}
+            <Link
+              href="/packages/new"
+              className="text-brand-600 hover:text-brand-700"
+            >
+              Create your first package
+            </Link>.
           </div>
         )}
       </div>
