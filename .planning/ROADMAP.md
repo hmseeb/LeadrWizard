@@ -84,7 +84,13 @@ Plans:
   2. An outreach SMS from one org uses that org's dedicated Twilio phone number, not a shared pool number
   3. A CRM operation for org A uses org A's GHL API key — org B's key is never accessed or used
   4. A service task that fails 5 or more times is moved to a dead letter queue, visible in the admin UI with a retry action
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — DB migration: encrypted credential columns + DLQ table + UPDATE RLS (CRUD-05, ORG-04)
+- [ ] 04-02-PLAN.md — Adapter refactoring: per-org credential injection in Twilio/GHL/Vapi + Twilio provisioner (ORG-01, ORG-02)
+- [ ] 04-03-PLAN.md — Settings UI: credential forms + cadence display + escalation config (CRUD-04)
+- [ ] 04-04-PLAN.md — Dead letter queue: task-processor DLQ logic + admin DLQ page with retry/dismiss (ORG-04)
 
 ### Phase 5: Widget Core Flow
 **Goal**: An embedded widget can load a session, walk the client through data collection step-by-step, and reach a confirmed completion state
@@ -139,7 +145,7 @@ Note: Phase 5 depends on Phase 3 (service definitions drive widget steps). Phase
 | 1. Security Foundation | 5/5 | Complete    | 2026-03-13 |
 | 2. Self-Service Signup | 3/3 | Complete | 2026-03-14 |
 | 3. Admin CRUD: Content | 0/4 | Not started | - |
-| 4. Org Settings + Per-Org Isolation | 0/TBD | Not started | - |
+| 4. Org Settings + Per-Org Isolation | 0/4 | Not started | - |
 | 5. Widget Core Flow | 0/TBD | Not started | - |
 | 6. Widget Voice + Security | 0/TBD | Not started | - |
 | 7. Rate Limiting + Structured Logging | 0/TBD | Not started | - |
