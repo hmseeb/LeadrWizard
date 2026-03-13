@@ -186,6 +186,13 @@ async function handleFunctionCall(
 
     case "escalateToHuman": {
       if (metadata.client_id && sessionId) {
+        // Resolve org_id for escalation
+        const { data: escClient } = await supabase
+          .from("clients")
+          .select("org_id")
+          .eq("id", metadata.client_id)
+          .single();
+
         await supabase.from("escalations").insert({
           client_id: metadata.client_id,
           session_id: sessionId,
@@ -195,6 +202,7 @@ async function handleFunctionCall(
           context: { call_data: data },
           channel: "voice_call",
           status: "open",
+          org_id: escClient?.org_id,
         });
       }
       return NextResponse.json({

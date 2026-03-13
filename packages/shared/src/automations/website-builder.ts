@@ -298,8 +298,16 @@ export async function initiateWebsiteBuild(
       .single();
 
     if (clientService) {
+      // Resolve org_id for escalation
+      const { data: wsClient } = await supabase
+        .from("clients")
+        .select("org_id")
+        .eq("id", (clientService as Record<string, string>).client_id)
+        .single();
+
       await supabase.from("escalations").insert({
         client_id: (clientService as Record<string, string>).client_id,
+        org_id: wsClient?.org_id,
         reason: `New niche template needed: "${data.niche}" for ${data.business_name}`,
         context: { build_data: data, task_id: taskId },
         channel: "system" as const,

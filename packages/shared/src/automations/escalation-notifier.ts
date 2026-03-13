@@ -40,12 +40,27 @@ export async function createEscalation(
     reason: string;
     context?: Record<string, unknown>;
     channel: string;
+    orgId?: string;
   }
 ): Promise<Escalation> {
+  // Resolve org_id from client if not provided directly
+  let orgId = params.orgId;
+  if (!orgId) {
+    const { data: client } = await supabase
+      .from("clients")
+      .select("org_id")
+      .eq("id", params.clientId)
+      .single();
+    orgId = client?.org_id;
+  }
+
+  if (!orgId) throw new Error(`Cannot resolve org_id for client ${params.clientId}`);
+
   const { data: escalation, error } = await supabase
     .from("escalations")
     .insert({
       client_id: params.clientId,
+      org_id: orgId,
       session_id: params.sessionId || null,
       reason: params.reason,
       context: params.context || {},

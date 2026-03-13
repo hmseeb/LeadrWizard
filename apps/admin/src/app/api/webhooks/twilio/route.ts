@@ -72,6 +72,13 @@ export async function POST(request: Request) {
 
     // Handle special actions
     if (action === "escalate") {
+      // Resolve org_id for escalation
+      const { data: escClient } = await supabase
+        .from("clients")
+        .select("org_id")
+        .eq("id", result.clientId)
+        .single();
+
       // Create escalation
       await supabase.from("escalations").insert({
         client_id: result.clientId,
@@ -80,6 +87,7 @@ export async function POST(request: Request) {
         context: { inbound_message: sms.body, from: sms.from },
         channel: "sms",
         status: "open",
+        org_id: escClient?.org_id,
       });
     }
 

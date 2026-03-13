@@ -296,6 +296,7 @@ export interface OutreachQueueItem {
 export interface Escalation {
   id: string;
   client_id: string;
+  org_id: string;
   session_id: string | null;
   reason: string;
   context: Record<string, unknown>;
