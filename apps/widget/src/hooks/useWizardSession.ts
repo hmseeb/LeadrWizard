@@ -31,6 +31,7 @@ export interface ServiceWithProgress {
 
 export function useWizardSession(
   sessionId: string,
+  apiBaseUrl?: string,
   supabaseUrl?: string,
   supabaseKey?: string
 ) {
@@ -200,33 +201,29 @@ export function useWizardSession(
       clientServiceId: string | null,
       answeredVia: "click" | "voice" = "click"
     ) => {
-      if (!supabase) return;
-
-      await supabase.from("session_responses").insert({
-        session_id: sessionId,
-        client_service_id: clientServiceId,
-        field_key: fieldKey,
-        field_value: fieldValue,
-        answered_via: answeredVia,
+      const baseUrl = apiBaseUrl || "";
+      const res = await fetch(`${baseUrl}/api/widget/response`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId,
+          fieldKey,
+          fieldValue,
+          clientServiceId,
+          answeredVia,
+          clientId: state.client?.id || null,
+        }),
       });
 
-      // Log interaction
-      if (state.client) {
-        await supabase.from("interaction_log").insert({
-          client_id: state.client.id,
-          session_id: sessionId,
-          channel: "widget",
-          direction: "inbound",
-          content_type: "text",
-          content: `${fieldKey}: ${fieldValue}`,
-          metadata: { answered_via: answeredVia },
-        });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(err.error || "Failed to submit response");
       }
 
       // Reload session to get next question
       await loadSession();
     },
-    [supabase, sessionId, state.client, loadSession]
+    [apiBaseUrl, sessionId, state.client, loadSession]
   );
 
   const setMode = useCallback((mode: "voice" | "visual") => {

@@ -7,12 +7,14 @@ import { VoiceBot } from "./VoiceBot";
 
 interface WizardWidgetProps {
   sessionId: string;
+  apiBaseUrl?: string;
   supabaseUrl?: string;
   supabaseKey?: string;
 }
 
 export function WizardWidget({
   sessionId,
+  apiBaseUrl,
   supabaseUrl,
   supabaseKey,
 }: WizardWidgetProps) {
@@ -27,7 +29,7 @@ export function WizardWidget({
     mode,
     submitResponse,
     setMode,
-  } = useWizardSession(sessionId, supabaseUrl, supabaseKey);
+  } = useWizardSession(sessionId, apiBaseUrl, supabaseUrl, supabaseKey);
 
   if (loading) {
     return (

@@ -6,6 +6,7 @@ import "./styles/widget.css";
 export interface LeadrWizardConfig {
   sessionId: string;
   containerId: string;
+  apiBaseUrl: string;          // e.g. "https://app.leadrwizard.com" — required for cross-origin API calls
   supabaseUrl?: string;
   supabaseKey?: string;
   theme?: {
@@ -42,6 +43,7 @@ function init(config: LeadrWizardConfig) {
     <React.StrictMode>
       <WizardWidget
         sessionId={config.sessionId}
+        apiBaseUrl={config.apiBaseUrl}
         supabaseUrl={config.supabaseUrl}
         supabaseKey={config.supabaseKey}
       />
