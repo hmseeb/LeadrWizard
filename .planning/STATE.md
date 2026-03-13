@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 ## Current Position
 
 Phase: 3 of 8 (Admin CRUD: Content)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: Executing Phase 3
-Last activity: 2026-03-14 — Completed plan 03-02 (service definition CRUD)
+Last activity: 2026-03-14 — Completed plan 03-03 (package CRUD)
 
-Progress: [█████████░] 50%
+Progress: [█████████░] 55%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
+- Total plans completed: 11
 - Average duration: 4 min
-- Total execution time: 40 min
+- Total execution time: 43 min
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [█████████░] 50%
 |-------|-------|-------|----------|
 | 01-security-foundation | 5 | 25 min | 5 min |
 | 02-self-service-signup | 3 | 8 min | 3 min |
-| 03-admin-crud-content | 2 | 7 min | 4 min |
+| 03-admin-crud-content | 3 | 10 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (1 min), 02-02 (3 min), 02-03 (4 min), 03-01 (2 min), 03-02 (5 min)
+- Last 5 plans: 02-02 (3 min), 02-03 (4 min), 03-01 (2 min), 03-02 (5 min), 03-03 (3 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -87,6 +87,10 @@ Recent decisions affecting current work:
 - [03-02]: DataFieldBuilder and SetupStepBuilder serialize arrays as JSON into hidden inputs for FormData
 - [03-02]: ServiceForm uses useActionState (React 19) for error handling and pending state
 - [03-02]: UI says "Deactivate" not "Delete" since soft-delete is reversible
+- [03-03]: Hard delete for packages per requirements ('delete' not 'soft-delete'), FK cascade cleans up package_services
+- [03-03]: Delete-then-insert pattern for service assignments on update, simpler than diff-based upsert
+- [03-03]: Price stored as integer cents, displayed as dollars with $ prefix, converted via hidden input onChange handler
+- [03-03]: Service assignment uses checkbox list not multi-select dropdown for better scannability
 
 ### Pending Todos
 
@@ -101,5 +105,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 03-02-PLAN.md (service definition CRUD). Phase 3 in progress.
+Stopped at: Completed 03-03-PLAN.md (package CRUD). Phase 3 in progress.
 Resume file: None
