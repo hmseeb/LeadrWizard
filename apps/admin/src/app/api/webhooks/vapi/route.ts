@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createServerClient } from "@leadrwizard/shared/supabase";
 import {
   processCallEndEvent,
@@ -6,6 +7,9 @@ import {
 } from "@leadrwizard/shared/comms";
 import { scheduleNextFollowUp } from "@leadrwizard/shared/automations";
 import type { OnboardingSession } from "@leadrwizard/shared/types";
+import { createRouteLogger } from "@leadrwizard/shared/utils";
+
+const moduleLog = createRouteLogger("webhooks/vapi");
 
 /**
  * Vapi webhook handler.
@@ -15,6 +19,9 @@ import type { OnboardingSession } from "@leadrwizard/shared/types";
  * POST https://your-domain.com/api/webhooks/vapi
  */
 export async function POST(request: Request) {
+  const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+  const log = createRouteLogger("webhooks/vapi", { correlation_id: correlationId });
+
   try {
     const body = await request.json();
     const supabase = createServerClient();
@@ -51,7 +58,11 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: true });
     }
   } catch (error) {
-    console.error("Vapi webhook error:", error);
+    log.error({ err: error }, "Vapi webhook error");
+    Sentry.withScope((scope) => {
+      scope.setTag("correlation_id", correlationId);
+      Sentry.captureException(error);
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -68,7 +79,7 @@ async function handleEndOfCall(
   const sessionId = metadata.session_id;
 
   if (!clientId || !sessionId) {
-    console.warn("Vapi end-of-call missing client_id or session_id");
+    moduleLog.warn("Vapi end-of-call report missing client_id or session_id");
     return NextResponse.json({ ok: true });
   }
 

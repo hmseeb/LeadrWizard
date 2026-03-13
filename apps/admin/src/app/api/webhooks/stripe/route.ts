@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
+import * as Sentry from "@sentry/nextjs";
 import { createServerClient } from "@leadrwizard/shared/supabase";
 import {
   constructEvent,
   processStripeWebhook,
 } from "@leadrwizard/shared/billing";
+import { createRouteLogger } from "@leadrwizard/shared/utils";
 
 /**
  * Stripe webhook handler.
@@ -14,6 +16,9 @@ import {
  * POST https://your-domain.com/api/webhooks/stripe
  */
 export async function POST(request: Request) {
+  const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+  const log = createRouteLogger("webhooks/stripe", { correlation_id: correlationId });
+
   try {
     // Step 1 — Get raw body and signature
     const body = await request.text();
@@ -69,7 +74,11 @@ export async function POST(request: Request) {
     await processStripeWebhook(supabase, event);
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error("Stripe webhook error:", error);
+    log.error({ err: error }, "Stripe webhook error");
+    Sentry.withScope((scope) => {
+      scope.setTag("correlation_id", correlationId);
+      Sentry.captureException(error);
+    });
     return NextResponse.json(
       { error: "Webhook processing failed" },
       { status: 500 }

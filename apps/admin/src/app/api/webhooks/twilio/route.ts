@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createServerClient } from "@leadrwizard/shared/supabase";
 import {
   parseInboundSMS,
@@ -7,6 +8,7 @@ import {
   handleInboundSMSReply,
   validateTwilioSignature,
 } from "@leadrwizard/shared/comms";
+import { createRouteLogger } from "@leadrwizard/shared/utils";
 
 /**
  * Twilio inbound SMS webhook.
@@ -16,6 +18,9 @@ import {
  * POST https://your-domain.com/api/webhooks/twilio
  */
 export async function POST(request: Request) {
+  const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+  const log = createRouteLogger("webhooks/twilio", { correlation_id: correlationId });
+
   try {
     const contentType = request.headers.get("content-type") || "";
     let body: Record<string, string>;
@@ -34,7 +39,7 @@ export async function POST(request: Request) {
 
     const isValid = await validateTwilioSignature(signature, webhookUrl, body);
     if (!isValid) {
-      console.warn("Invalid Twilio signature — rejecting webhook");
+      log.warn("Invalid Twilio signature");
       return new NextResponse("Forbidden", { status: 403 });
     }
 
@@ -51,7 +56,7 @@ export async function POST(request: Request) {
 
     if (!result) {
       // Unknown sender — could be a new lead or wrong number
-      console.warn(`Inbound SMS from unknown number: ${sms.from}`);
+      log.warn({ from: sms.from }, "Inbound SMS from unknown number");
       return twimlResponse(
         "Thanks for reaching out! It looks like we don't have your number on file. Please contact us at our main line."
       );
@@ -101,7 +106,11 @@ export async function POST(request: Request) {
     // Return TwiML empty response (we send replies via API, not TwiML)
     return twimlResponse("");
   } catch (error) {
-    console.error("Twilio webhook error:", error);
+    log.error({ err: error }, "Twilio webhook error");
+    Sentry.withScope((scope) => {
+      scope.setTag("correlation_id", correlationId);
+      Sentry.captureException(error);
+    });
     return twimlResponse("");
   }
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createServerClient } from "@leadrwizard/shared/supabase";
 import type {
   ClientService,
@@ -7,6 +8,7 @@ import type {
   DataFieldDefinition,
   AgentDecision,
 } from "@leadrwizard/shared/types";
+import { createRouteLogger } from "@leadrwizard/shared/utils";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -36,6 +38,9 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
+  const correlationId = crypto.randomUUID();
+  const log = createRouteLogger("widget/session", { correlation_id: correlationId });
+
   try {
     const { sessionId } = await params;
 
@@ -208,7 +213,11 @@ export async function GET(
       { headers: corsHeaders }
     );
   } catch (error) {
-    console.error("Widget session load error:", error);
+    log.error({ err: error }, "Widget session load error");
+    Sentry.withScope((scope) => {
+      scope.setTag("correlation_id", correlationId);
+      Sentry.captureException(error);
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500, headers: corsHeaders }

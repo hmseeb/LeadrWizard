@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createServerClient } from "@leadrwizard/shared/supabase";
 import { handlePaymentWebhook } from "@leadrwizard/shared/automations";
 import type { PaymentWebhookPayload } from "@leadrwizard/shared/automations";
+import { createRouteLogger } from "@leadrwizard/shared/utils";
 
 /**
  * Payment webhook handler.
@@ -16,6 +18,9 @@ import type { PaymentWebhookPayload } from "@leadrwizard/shared/automations";
  *   X-API-Key: <org_api_key>
  */
 export async function POST(request: Request) {
+  const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+  const log = createRouteLogger("webhooks/payment", { correlation_id: correlationId });
+
   try {
     const body = await request.json();
 
@@ -94,7 +99,11 @@ export async function POST(request: Request) {
       session_id: result.session.id,
     });
   } catch (error) {
-    console.error("Payment webhook error:", error);
+    log.error({ err: error }, "Payment webhook error");
+    Sentry.withScope((scope) => {
+      scope.setTag("correlation_id", correlationId);
+      Sentry.captureException(error);
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

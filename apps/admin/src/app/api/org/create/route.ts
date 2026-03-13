@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createOrganization } from "@leadrwizard/shared/tenant";
+import { createRouteLogger } from "@leadrwizard/shared/utils";
 
 /**
  * Creates a new organization for the authenticated user.
  */
 export async function POST(request: Request) {
+  const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+  const log = createRouteLogger("org/create", { correlation_id: correlationId });
+
   try {
     const supabase = await createSupabaseServerClient();
     const {
@@ -51,7 +56,11 @@ export async function POST(request: Request) {
       membership: result.membership,
     });
   } catch (error) {
-    console.error("Org creation error:", error);
+    log.error({ err: error }, "Org creation error");
+    Sentry.withScope((scope) => {
+      scope.setTag("correlation_id", correlationId);
+      Sentry.captureException(error);
+    });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to create org" },
       { status: 500 }

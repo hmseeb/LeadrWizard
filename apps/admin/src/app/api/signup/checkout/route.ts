@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createServerClient } from "@leadrwizard/shared/supabase";
 import { createSignupCheckoutSession } from "@leadrwizard/shared/billing";
+import { createRouteLogger } from "@leadrwizard/shared/utils";
 
 /**
  * Public checkout endpoint for new agency signup.
@@ -19,6 +21,9 @@ import { createSignupCheckoutSession } from "@leadrwizard/shared/billing";
  *   4. Or: stripe trigger checkout.session.completed
  */
 export async function POST(request: Request) {
+  const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+  const log = createRouteLogger("signup/checkout", { correlation_id: correlationId });
+
   try {
     const body = await request.json();
     const { planSlug, email, orgName } = body as {
@@ -56,7 +61,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ checkoutUrl });
   } catch (error) {
-    console.error("Signup checkout error:", error);
+    log.error({ err: error }, "Signup checkout error");
+    Sentry.withScope((scope) => {
+      scope.setTag("correlation_id", correlationId);
+      Sentry.captureException(error);
+    });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Checkout creation failed" },
       { status: 500 }

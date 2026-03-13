@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createBillingPortalSession } from "@leadrwizard/shared/billing";
 import { getUserOrg } from "@leadrwizard/shared/tenant";
+import { createRouteLogger } from "@leadrwizard/shared/utils";
 
 /**
  * Creates a Stripe Billing Portal session for managing subscriptions.
  */
 export async function POST() {
+  const correlationId = crypto.randomUUID();
+  const log = createRouteLogger("billing/portal", { correlation_id: correlationId });
+
   try {
     const supabase = await createSupabaseServerClient();
     const {
@@ -31,7 +36,11 @@ export async function POST() {
 
     return NextResponse.json({ url: portalUrl });
   } catch (error) {
-    console.error("Portal error:", error);
+    log.error({ err: error }, "Portal error");
+    Sentry.withScope((scope) => {
+      scope.setTag("correlation_id", correlationId);
+      Sentry.captureException(error);
+    });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Portal creation failed" },
       { status: 500 }
