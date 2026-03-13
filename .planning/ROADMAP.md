@@ -130,7 +130,12 @@ Plans:
   1. Making more than the configured number of requests to a webhook or widget API endpoint within the window returns 429 — this limit holds across multiple Vercel function instances (not reset on cold start)
   2. Every server log line includes correlation_id, org_id, and session_id in structured JSON — no bare `console.error` calls remain in the codebase
   3. An unhandled error in any API route is captured in Sentry with the org_id and session_id attached as tags, visible in the Sentry dashboard
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 07-01-PLAN.md — Install deps + pino logger factory + Upstash rate limiter + Sentry config + next.config.ts (SEC-06, OBS-01, OBS-02)
+- [ ] 07-02-PLAN.md — Replace all 23 console calls with pino structured logging + Sentry error capture (OBS-01, OBS-02)
+- [ ] 07-03-PLAN.md — Middleware rate limiting + correlation ID injection for public endpoints (SEC-06)
 
 ### Phase 8: Realtime Dashboard
 **Goal**: The admin dashboard reflects live changes to onboarding sessions and escalations without requiring a page refresh
@@ -157,5 +162,5 @@ Note: Phase 5 depends on Phase 3 (service definitions drive widget steps). Phase
 | 4. Org Settings + Per-Org Isolation | 0/4 | Not started | - |
 | 5. Widget Core Flow | 0/3 | Not started | - |
 | 6. Widget Voice + Security | 0/2 | Not started | - |
-| 7. Rate Limiting + Structured Logging | 0/TBD | Not started | - |
+| 7. Rate Limiting + Structured Logging | 0/3 | Not started | - |
 | 8. Realtime Dashboard | 0/TBD | Not started | - |
