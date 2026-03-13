@@ -116,7 +116,11 @@ Plans:
   1. A client can start in form mode, switch to ElevenLabs voice mode mid-flow, and the session state (collected fields, current step) is preserved across the mode switch
   2. A client can start in voice mode, switch to form mode mid-flow, and collected responses from voice mode are retained
   3. Embedding the widget on a domain not listed in `allowedOrigins` shows an error state instead of the form — the session never loads
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 06-01-PLAN.md — Voice/form hybrid wiring: session API voiceConfig + useWizardSession voiceConfig state + WizardWidget VoiceBot re-enablement (WIDG-02)
+- [ ] 06-02-PLAN.md — Origin validation: allowedOrigins parameter in init() with ancestorOrigins/referrer/origin detection (WIDG-06)
 
 ### Phase 7: Rate Limiting + Structured Logging
 **Goal**: All public endpoints have production-grade rate limiting that persists across serverless cold starts, and every log line carries correlation IDs for debugging
@@ -152,6 +156,6 @@ Note: Phase 5 depends on Phase 3 (service definitions drive widget steps). Phase
 | 3. Admin CRUD: Content | 0/4 | Not started | - |
 | 4. Org Settings + Per-Org Isolation | 0/4 | Not started | - |
 | 5. Widget Core Flow | 0/3 | Not started | - |
-| 6. Widget Voice + Security | 0/TBD | Not started | - |
+| 6. Widget Voice + Security | 0/2 | Not started | - |
 | 7. Rate Limiting + Structured Logging | 0/TBD | Not started | - |
 | 8. Realtime Dashboard | 0/TBD | Not started | - |
