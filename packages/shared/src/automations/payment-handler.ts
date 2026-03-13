@@ -27,72 +27,77 @@ export interface OnboardingInitResult {
 
 /**
  * Handles the full onboarding initialization triggered by a payment event.
- * Flow: create client → create client_package → create client_services →
- *       provision GHL sub-account → deploy snapshot → create session → queue first outreach
+ * Flow: provision_client RPC (atomic: client + package + services + session) →
+ *       provision GHL sub-account → deploy snapshot → queue first outreach
+ *
+ * NOTE: supabase migration 00005 must be deployed before this runs,
+ * or the rpc('provision_client') call will fail with "function not found".
+ * Run `supabase db push` locally before testing.
  */
 export async function handlePaymentWebhook(
   supabase: SupabaseClient,
   orgId: string,
   payload: PaymentWebhookPayload
 ): Promise<OnboardingInitResult> {
-  // 1. Create client record
-  const { data: client, error: clientError } = await supabase
-    .from("clients")
-    .insert({
-      org_id: orgId,
-      name: payload.customer_name,
-      email: payload.customer_email,
-      phone: payload.customer_phone || null,
-      business_name: payload.business_name || null,
-      payment_ref: payload.payment_ref,
-      metadata: payload.metadata || {},
-    })
-    .select()
-    .single();
+  // 1. Atomically create client, client_package, client_services, and session
+  //    via provision_client plpgsql function (security definer, single transaction).
+  const { data: provisionResult, error: provisionError } = await supabase.rpc(
+    "provision_client",
+    {
+      p_org_id:        orgId,
+      p_name:          payload.customer_name,
+      p_email:         payload.customer_email,
+      p_phone:         payload.customer_phone || null,
+      p_business_name: payload.business_name || null,
+      p_payment_ref:   payload.payment_ref,
+      p_package_id:    payload.package_id,
+      p_metadata:      payload.metadata || {},
+    }
+  );
 
-  if (clientError) throw new Error(`Failed to create client: ${clientError.message}`);
+  if (provisionError) {
+    throw new Error(`Provisioning failed: ${provisionError.message}`);
+  }
 
-  // 2. Create client_package
-  const { data: clientPackage, error: pkgError } = await supabase
-    .from("client_packages")
-    .insert({
-      client_id: client.id,
-      package_id: payload.package_id,
-    })
-    .select()
-    .single();
+  // 2. Handle idempotent case — duplicate payment webhook for same payment_ref
+  if ((provisionResult as { idempotent: boolean }).idempotent) {
+    const clientId = (provisionResult as { client_id: string }).client_id;
+    const { data: existingClient } = await supabase.from("clients").select("*").eq("id", clientId).single();
+    const { data: existingSession } = await supabase.from("onboarding_sessions").select("*").eq("client_id", clientId).single();
+    const { data: existingPackage } = await supabase.from("client_packages").select("*").eq("client_id", clientId).single();
+    const { data: existingServices } = await supabase.from("client_services").select("*").eq("client_id", clientId);
 
-  if (pkgError) throw new Error(`Failed to create client package: ${pkgError.message}`);
+    return {
+      client: existingClient as Client,
+      client_package: existingPackage as ClientPackage,
+      client_services: (existingServices || []) as ClientService[],
+      session: existingSession as OnboardingSession,
+    };
+  }
 
-  // 3. Get services in this package and create client_services
-  const { data: packageServices } = await supabase
-    .from("package_services")
-    .select("service_id")
-    .eq("package_id", payload.package_id);
+  // 3. Extract provisioned IDs from RPC result
+  const result = provisionResult as {
+    client_id: string;
+    package_id: string;
+    session_id: string;
+    idempotent: boolean;
+  };
 
-  const clientServicesData = (packageServices || []).map((ps) => ({
-    client_id: client.id,
-    service_id: ps.service_id,
-    client_package_id: clientPackage.id,
-    status: "pending_onboarding" as const,
-    opted_out: false,
-  }));
-
-  const { data: clientServices, error: csError } = await supabase
-    .from("client_services")
-    .insert(clientServicesData)
-    .select();
-
-  if (csError) throw new Error(`Failed to create client services: ${csError.message}`);
+  // 4. Fetch the created records (needed for GHL provisioning and return type)
+  const { data: client } = await supabase.from("clients").select("*").eq("id", result.client_id).single();
+  const { data: clientPackage } = await supabase.from("client_packages").select("*").eq("id", result.package_id).single();
+  const { data: session } = await supabase.from("onboarding_sessions").select("*").eq("id", result.session_id).single();
+  const { data: clientServices } = await supabase.from("client_services").select("*").eq("client_id", result.client_id);
 
   const typedClient = client as Client;
   const typedClientServices = (clientServices || []) as ClientService[];
 
-  // 4. Provision GHL sub-account immediately upon payment
+  // 5. Provision GHL sub-account immediately upon payment
+  // External API calls remain outside the transaction — correct by design.
   // Find the GHL automations service to link the task to
   const ghlService = typedClientServices.find((cs) => {
     // Try to match the GHL automation service
-    const serviceData = packageServices?.find((ps) => ps.service_id === cs.service_id);
+    const serviceData = typedClientServices.find((s) => s.service_id === cs.service_id);
     return serviceData !== undefined; // We'll use the first service as fallback
   });
 
@@ -125,30 +130,16 @@ export async function handlePaymentWebhook(
     }
   }
 
-  // 5. Create onboarding session
-  const { data: session, error: sessionError } = await supabase
-    .from("onboarding_sessions")
-    .insert({
-      client_id: client.id,
-      org_id: orgId,
-      status: "active",
-      completion_pct: 0,
-    })
-    .select()
-    .single();
-
-  if (sessionError) throw new Error(`Failed to create session: ${sessionError.message}`);
-
   // 6. Queue initial outreach (SMS with onboarding link)
   await supabase.from("outreach_queue").insert({
-    client_id: client.id,
-    session_id: session.id,
+    client_id: client!.id,
+    session_id: session!.id,
     channel: "sms",
     message_template: "welcome_sms",
     message_params: {
-      name: client.name,
-      business: client.business_name || "",
-      link: `{{WIDGET_URL}}?session=${session.id}`,
+      name: client!.name,
+      business: client!.business_name || "",
+      link: `{{WIDGET_URL}}?session=${session!.id}`,
     },
     scheduled_at: new Date().toISOString(),
     status: "pending",
@@ -159,8 +150,8 @@ export async function handlePaymentWebhook(
 
   // 7. Log the payment event
   await supabase.from("interaction_log").insert({
-    client_id: client.id,
-    session_id: session.id,
+    client_id: client!.id,
+    session_id: session!.id,
     channel: "system",
     direction: "inbound",
     content_type: "system_event",
