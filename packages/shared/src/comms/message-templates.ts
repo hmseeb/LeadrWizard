@@ -7,7 +7,7 @@ export interface TemplateParams {
   name: string;
   businessName?: string;
   packageName?: string;
-  onboardingUrl: string;
+  onboardingUrl?: string;
   itemsRemaining?: number;
 }
 

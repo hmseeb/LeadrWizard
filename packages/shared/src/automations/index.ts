@@ -20,11 +20,14 @@ export {
   requestGMBAccess,
   checkGMBAccessStatus,
   type GMBAccessData,
+  type GMBOptimizationData,
 } from "./gmb-manager";
 
 export {
   findNicheTemplate,
   initiateWebsiteBuild,
+  handleWebsiteAdjustment,
+  approveWebsite,
   type WebsiteBuildData,
 } from "./website-builder";
 
@@ -32,5 +35,9 @@ export {
   provisionSubAccount,
   deploySnapshot,
   syncContactToGHL,
+  customizeSnapshot,
   type GHLSubAccountResult,
+  type GHLContactResult,
 } from "./ghl-adapter";
+
+export { processServiceTasks } from "./task-processor";

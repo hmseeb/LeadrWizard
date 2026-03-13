@@ -3,9 +3,9 @@ import type {
   ClientPackage,
   ClientService,
   OnboardingSession,
-  OutreachQueueItem,
 } from "../types";
 import type { SupabaseClient } from "../supabase/client";
+import { provisionSubAccount, deploySnapshot } from "./ghl-adapter";
 
 export interface PaymentWebhookPayload {
   customer_name: string;
@@ -14,6 +14,7 @@ export interface PaymentWebhookPayload {
   business_name?: string;
   package_id: string;
   payment_ref: string;
+  org_id?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -27,7 +28,7 @@ export interface OnboardingInitResult {
 /**
  * Handles the full onboarding initialization triggered by a payment event.
  * Flow: create client → create client_package → create client_services →
- *       provision GHL sub-account → create session → queue first outreach
+ *       provision GHL sub-account → deploy snapshot → create session → queue first outreach
  */
 export async function handlePaymentWebhook(
   supabase: SupabaseClient,
@@ -84,7 +85,47 @@ export async function handlePaymentWebhook(
 
   if (csError) throw new Error(`Failed to create client services: ${csError.message}`);
 
-  // 4. Create onboarding session
+  const typedClient = client as Client;
+  const typedClientServices = (clientServices || []) as ClientService[];
+
+  // 4. Provision GHL sub-account immediately upon payment
+  // Find the GHL automations service to link the task to
+  const ghlService = typedClientServices.find((cs) => {
+    // Try to match the GHL automation service
+    const serviceData = packageServices?.find((ps) => ps.service_id === cs.service_id);
+    return serviceData !== undefined; // We'll use the first service as fallback
+  });
+
+  if (ghlService) {
+    try {
+      await provisionSubAccount(supabase, typedClient, ghlService.id);
+
+      // If provisioning succeeded, deploy snapshot
+      // Refresh client to get ghl_sub_account_id
+      const { data: updatedClient } = await supabase
+        .from("clients")
+        .select()
+        .eq("id", typedClient.id)
+        .single();
+
+      if (updatedClient && (updatedClient as Client).ghl_sub_account_id) {
+        const snapshotId = process.env.GHL_SNAPSHOT_ID || "";
+        if (snapshotId) {
+          await deploySnapshot(
+            supabase,
+            ghlService.id,
+            (updatedClient as Client).ghl_sub_account_id!,
+            snapshotId
+          );
+        }
+      }
+    } catch (err) {
+      // Log but don't fail — onboarding should continue even if GHL provisioning fails
+      console.error("GHL provisioning failed (will retry):", err instanceof Error ? err.message : err);
+    }
+  }
+
+  // 5. Create onboarding session
   const { data: session, error: sessionError } = await supabase
     .from("onboarding_sessions")
     .insert({
@@ -98,7 +139,7 @@ export async function handlePaymentWebhook(
 
   if (sessionError) throw new Error(`Failed to create session: ${sessionError.message}`);
 
-  // 5. Queue initial outreach (SMS with onboarding link)
+  // 6. Queue initial outreach (SMS with onboarding link)
   await supabase.from("outreach_queue").insert({
     client_id: client.id,
     session_id: session.id,
@@ -116,13 +157,25 @@ export async function handlePaymentWebhook(
     escalation_level: 1,
   });
 
-  // TODO: Provision GHL sub-account via ghl-adapter
-  // TODO: Deploy GHL snapshot via ghl-adapter
+  // 7. Log the payment event
+  await supabase.from("interaction_log").insert({
+    client_id: client.id,
+    session_id: session.id,
+    channel: "system",
+    direction: "inbound",
+    content_type: "system_event",
+    content: `Payment received: ${payload.payment_ref}`,
+    metadata: {
+      payment_ref: payload.payment_ref,
+      package_id: payload.package_id,
+      services_count: typedClientServices.length,
+    },
+  });
 
   return {
-    client: client as Client,
+    client: typedClient,
     client_package: clientPackage as ClientPackage,
-    client_services: (clientServices || []) as ClientService[],
+    client_services: typedClientServices,
     session: session as OnboardingSession,
   };
 }
