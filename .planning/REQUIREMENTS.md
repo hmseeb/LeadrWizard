@@ -74,40 +74,40 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEC-01 | — | Pending |
-| SEC-02 | — | Pending |
-| SEC-03 | — | Pending |
-| SEC-04 | — | Pending |
-| SEC-05 | — | Pending |
-| SEC-06 | — | Pending |
-| SIGN-01 | — | Pending |
-| SIGN-02 | — | Pending |
-| SIGN-03 | — | Pending |
-| SIGN-04 | — | Pending |
-| CRUD-01 | — | Pending |
-| CRUD-02 | — | Pending |
-| CRUD-03 | — | Pending |
-| CRUD-04 | — | Pending |
-| CRUD-05 | — | Pending |
-| WIDG-01 | — | Pending |
-| WIDG-02 | — | Pending |
-| WIDG-03 | — | Pending |
-| WIDG-04 | — | Pending |
-| WIDG-05 | — | Pending |
-| WIDG-06 | — | Pending |
-| ORG-01 | — | Pending |
-| ORG-02 | — | Pending |
-| ORG-03 | — | Pending |
-| ORG-04 | — | Pending |
-| OBS-01 | — | Pending |
-| OBS-02 | — | Pending |
-| OBS-03 | — | Pending |
+| SEC-01 | Phase 1 | Pending |
+| SEC-02 | Phase 1 | Pending |
+| SEC-03 | Phase 1 | Pending |
+| SEC-04 | Phase 1 | Pending |
+| SEC-05 | Phase 1 | Pending |
+| SEC-06 | Phase 7 | Pending |
+| SIGN-01 | Phase 2 | Pending |
+| SIGN-02 | Phase 2 | Pending |
+| SIGN-03 | Phase 2 | Pending |
+| SIGN-04 | Phase 2 | Pending |
+| CRUD-01 | Phase 3 | Pending |
+| CRUD-02 | Phase 3 | Pending |
+| CRUD-03 | Phase 3 | Pending |
+| CRUD-04 | Phase 4 | Pending |
+| CRUD-05 | Phase 4 | Pending |
+| WIDG-01 | Phase 5 | Pending |
+| WIDG-02 | Phase 6 | Pending |
+| WIDG-03 | Phase 5 | Pending |
+| WIDG-04 | Phase 5 | Pending |
+| WIDG-05 | Phase 5 | Pending |
+| WIDG-06 | Phase 6 | Pending |
+| ORG-01 | Phase 4 | Pending |
+| ORG-02 | Phase 4 | Pending |
+| ORG-03 | Phase 1 | Pending |
+| ORG-04 | Phase 4 | Pending |
+| OBS-01 | Phase 7 | Pending |
+| OBS-02 | Phase 7 | Pending |
+| OBS-03 | Phase 8 | Pending |
 
 **Coverage:**
 - Launch requirements: 28 total
-- Mapped to phases: 0
-- Unmapped: 28
+- Mapped to phases: 28
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-13 after initial definition*
+*Last updated: 2026-03-13 after roadmap creation — all 28 requirements mapped*
