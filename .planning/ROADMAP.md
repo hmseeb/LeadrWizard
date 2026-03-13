@@ -52,7 +52,12 @@ Plans:
   2. The new org admin receives a welcome email containing a working link to set their password and access the dashboard
   3. After logging in for the first time, the admin sees an empty-state setup wizard with clear steps: add services, configure package, set up integrations
   4. A developer running locally can trigger the `checkout.session.completed` webhook via Stripe CLI and see the full provisioning flow execute against the dev database
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Database migration: provision_org plpgsql function for atomic org + subscription creation (SIGN-01)
+- [ ] 02-02-PLAN.md — Public checkout endpoint + webhook new-signup branch + Supabase auth invite (SIGN-01, SIGN-02, SIGN-04)
+- [ ] 02-03-PLAN.md — Empty-state setup wizard on dashboard + signup success page (SIGN-03)
 
 ### Phase 3: Admin CRUD: Content
 **Goal**: Admins can create and manage the content that drives onboarding: service definitions, packages, and message templates
@@ -126,7 +131,7 @@ Note: Phase 5 depends on Phase 3 (service definitions drive widget steps). Phase
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Security Foundation | 4/5 | Complete    | 2026-03-13 |
-| 2. Self-Service Signup | 0/TBD | Not started | - |
+| 2. Self-Service Signup | 0/3 | Not started | - |
 | 3. Admin CRUD: Content | 0/TBD | Not started | - |
 | 4. Org Settings + Per-Org Isolation | 0/TBD | Not started | - |
 | 5. Widget Core Flow | 0/TBD | Not started | - |
