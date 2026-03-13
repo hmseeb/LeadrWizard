@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Core value:** Clients get onboarded without human intervention. The agent asks the right questions through the right channel at the right time, and services get set up automatically.
-**Current focus:** Phase 3 — Admin CRUD: Content
+**Current focus:** Phase 4 — Org Settings + Per-Org Isolation
 
 ## Current Position
 
-Phase: 3 of 8 (Admin CRUD: Content)
-Plan: 4 of 4 in current phase
-Status: Phase 3 Complete
-Last activity: 2026-03-14 — Completed plan 03-04 (message template CRUD)
+Phase: 4 of 8 (Org Settings + Per-Org Isolation)
+Plan: 1 of 4 in current phase
+Status: Executing
+Last activity: 2026-03-14 — Completed plan 04-01 (org credentials foundation)
 
-Progress: [██████████] 60%
+Progress: [█████████████] 65%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
+- Total plans completed: 13
 - Average duration: 4 min
-- Total execution time: 47 min
+- Total execution time: 50 min
 
 **By Phase:**
 
@@ -30,9 +30,10 @@ Progress: [██████████] 60%
 | 01-security-foundation | 5 | 25 min | 5 min |
 | 02-self-service-signup | 3 | 8 min | 3 min |
 | 03-admin-crud-content | 4 | 14 min | 4 min |
+| 04-org-settings-isolation | 1 | 3 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-03 (4 min), 03-01 (2 min), 03-02 (5 min), 03-03 (3 min), 03-04 (4 min)
+- Last 5 plans: 03-01 (2 min), 03-02 (5 min), 03-03 (3 min), 03-04 (4 min), 04-01 (3 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -95,6 +96,11 @@ Recent decisions affecting current work:
 - [03-04]: Hard delete for message templates (unlike soft-delete for services) since no FK references depend on them
 - [03-04]: Templates list page repurposed from niche_templates to message_templates per CRUD-03 requirement
 - [03-04]: Sidebar icon changed from Layout to MessageSquare to reflect message templates instead of website templates
+- [04-01]: v1: prefix on encrypted values for future key rotation support
+- [04-01]: Non-secret identifiers (phone number, location/company/assistant/agent IDs) stored as plain text
+- [04-01]: No RLS INSERT on dead_letter_queue — service role inserts only
+- [04-01]: DLQ entries never deleted, only retried or dismissed (audit trail)
+- [04-01]: Partial index idx_dlq_active filters to non-retried/non-dismissed entries
 
 ### Pending Todos
 
@@ -109,5 +115,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 03-04-PLAN.md (message template CRUD). Phase 3 complete.
+Stopped at: Completed 04-01-PLAN.md (org credentials foundation)
 Resume file: None

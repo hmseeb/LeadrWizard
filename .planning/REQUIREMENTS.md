@@ -29,7 +29,7 @@ Requirements for production launch. Each maps to roadmap phases.
 - [x] **CRUD-02**: Admin can create, edit, and delete packages with assigned services and pricing metadata
 - [x] **CRUD-03**: Admin can create, edit, and delete message templates with variable interpolation preview per channel (SMS, email, voice)
 - [ ] **CRUD-04**: Admin can configure org settings: Twilio account SID/auth token, GHL API key, outreach cadence config
-- [ ] **CRUD-05**: Org settings credentials stored encrypted per-org (not shared globally)
+- [x] **CRUD-05**: Org settings credentials stored encrypted per-org (not shared globally)
 
 ### Widget
 
@@ -45,7 +45,7 @@ Requirements for production launch. Each maps to roadmap phases.
 - [ ] **ORG-01**: Each org gets a dedicated Twilio phone number provisioned at signup, used for all outreach instead of shared pool
 - [ ] **ORG-02**: Each org stores its own GHL API credentials (encrypted), used for CRM operations instead of shared global key
 - [x] **ORG-03**: Payment handler uses atomic transaction (plpgsql function) to prevent orphaned records on partial provisioning failure
-- [ ] **ORG-04**: Failed service tasks (5+ failures) moved to dead letter queue table with admin UI to view and retry
+- [x] **ORG-04**: Failed service tasks (5+ failures) moved to dead letter queue table with admin UI to view and retry
 
 ### Observability
 
@@ -88,7 +88,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CRUD-02 | Phase 3 | Complete |
 | CRUD-03 | Phase 3 | Complete |
 | CRUD-04 | Phase 4 | Pending |
-| CRUD-05 | Phase 4 | Pending |
+| CRUD-05 | Phase 4 | Complete |
 | WIDG-01 | Phase 5 | Pending |
 | WIDG-02 | Phase 6 | Pending |
 | WIDG-03 | Phase 5 | Pending |
@@ -98,7 +98,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ORG-01 | Phase 4 | Pending |
 | ORG-02 | Phase 4 | Pending |
 | ORG-03 | Phase 1 | Complete |
-| ORG-04 | Phase 4 | Pending |
+| ORG-04 | Phase 4 | Complete |
 | OBS-01 | Phase 7 | Pending |
 | OBS-02 | Phase 7 | Pending |
 | OBS-03 | Phase 8 | Pending |
