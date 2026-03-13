@@ -56,7 +56,7 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md — Database migration: provision_org plpgsql function for atomic org + subscription creation (SIGN-01)
-- [ ] 02-02-PLAN.md — Public checkout endpoint + webhook new-signup branch + Supabase auth invite (SIGN-01, SIGN-02, SIGN-04)
+- [x] 02-02-PLAN.md — Public checkout endpoint + webhook new-signup branch + Supabase auth invite (SIGN-01, SIGN-02, SIGN-04)
 - [ ] 02-03-PLAN.md — Empty-state setup wizard on dashboard + signup success page (SIGN-03)
 
 ### Phase 3: Admin CRUD: Content

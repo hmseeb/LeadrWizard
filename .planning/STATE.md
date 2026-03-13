@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 ## Current Position
 
 Phase: 2 of 8 (Self-Service Signup)
-Plan: 2 of 3 in current phase
+Plan: 3 of 3 in current phase
 Status: In progress
-Last activity: 2026-03-14 — Completed plan 02-01 (provision_org atomic org provisioning function)
+Last activity: 2026-03-14 — Completed plan 02-02 (signup checkout + webhook handler)
 
-Progress: [██████░░░░] 30%
+Progress: [███████░░░] 35%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
+- Total plans completed: 7
 - Average duration: 4 min
-- Total execution time: 26 min
+- Total execution time: 29 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-security-foundation | 5 | 25 min | 5 min |
-| 02-self-service-signup | 1 | 1 min | 1 min |
+| 02-self-service-signup | 2 | 4 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (9 min), 01-03 (3 min), 01-04 (3 min), 01-05 (8 min), 02-01 (1 min)
+- Last 5 plans: 01-03 (3 min), 01-04 (3 min), 01-05 (8 min), 02-01 (1 min), 02-02 (3 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -69,6 +69,10 @@ Recent decisions affecting current work:
 - [02-01]: Idempotent on stripe_customer_id to handle webhook retries safely
 - [02-01]: 30-day hardcoded initial period, updated by customer.subscription.updated event
 - [02-01]: Slug collision appends random 6-char suffix; empty slugs get generated fallback
+- [02-02]: Branch checkout.session.completed on metadata.signup flag rather than absence of org_id
+- [02-02]: handleNewOrgSignup creates org before user (recoverable failure mode)
+- [02-02]: Idempotent on duplicate webhooks via provision_org result.idempotent flag
+- [02-02]: constructEvent added to billing barrel export for consistency
 
 ### Pending Todos
 
@@ -77,12 +81,11 @@ None yet.
 ### Blockers/Concerns
 
 - [Phase 1]: Vapi webhook signature verification not covered by any requirement — research flagged this. May surface during Phase 1 planning.
-- [Phase 2]: `stripe-adapter.ts` may be disconnected from tenant provisioning — requires code inspection before planning Phase 2.
 - [Phase 6]: ElevenLabs voice + form hybrid state machine needs design before implementation — complex UX with shared state across mode switches.
 - [Phase 7]: Upstash Redis account setup is a deployment dependency — must be provisioned before Phase 7 can ship.
 
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 02-01-PLAN.md (provision_org atomic org provisioning function)
+Stopped at: Completed 02-02-PLAN.md (signup checkout + webhook handler)
 Resume file: None
