@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 ## Current Position
 
 Phase: 5 of 8 (Widget Core Flow)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: Executing
-Last activity: 2026-03-14 — Completed plan 05-01 (widget core flow API)
+Last activity: 2026-03-14 — Completed plan 05-02 (widget hook refactor)
 
-Progress: [███████████████] 71%
+Progress: [████████████████] 75%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 17
+- Total plans completed: 18
 - Average duration: 4 min
-- Total execution time: 65 min
+- Total execution time: 68 min
 
 **By Phase:**
 
@@ -31,10 +31,10 @@ Progress: [███████████████] 71%
 | 02-self-service-signup | 3 | 8 min | 3 min |
 | 03-admin-crud-content | 4 | 14 min | 4 min |
 | 04-org-settings-isolation | 4 | 15 min | 4 min |
-| 05-widget-core-flow | 1 | 3 min | 3 min |
+| 05-widget-core-flow | 2 | 6 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-01 (3 min), 04-04 (3 min), 04-03 (3 min), 04-02 (6 min), 05-01 (3 min)
+- Last 5 plans: 04-04 (3 min), 04-03 (3 min), 04-02 (6 min), 05-01 (3 min), 05-02 (3 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -119,6 +119,10 @@ Recent decisions affecting current work:
 - [05-01]: Both active AND completed sessions returned from GET: completed sessions load completion screen, only invalid/abandoned get 404
 - [05-01]: Client fields limited to id/name/business_name: email and phone not exposed to widget for privacy
 - [05-01]: completionPct updated on every POST submission: dashboard always shows accurate progress
+- [05-02]: Flat ServiceWithProgress shape (clientServiceId, serviceId, serviceName) instead of nested objects: matches API response directly
+- [05-02]: Default mode changed from 'voice' to 'visual': voice is Phase 6 scope
+- [05-02]: stepError displays user-friendly message after all retry attempts fail, clearable via clearStepError callback
+- [05-02]: withRetry is a standalone generic utility: clean, testable, no framework dependencies
 
 ### Pending Todos
 
@@ -133,5 +137,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 05-01-PLAN.md (widget core flow API)
+Stopped at: Completed 05-02-PLAN.md (widget hook refactor)
 Resume file: None
