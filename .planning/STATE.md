@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 ## Current Position
 
 Phase: 8 of 8 (Realtime Dashboard)
-Plan: 1 of 2 in current phase
-Status: In Progress
-Last activity: 2026-03-14 — Completed plan 08-01 (org_id on escalations + realtime publication)
+Plan: 2 of 2 in current phase
+Status: Complete
+Last activity: 2026-03-14 — Completed plan 08-02 (realtime client components)
 
-Progress: [█████████████████████████] 96%
+Progress: [██████████████████████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 25
+- Total plans completed: 26
 - Average duration: 4 min
-- Total execution time: 89 min
+- Total execution time: 94 min
 
 **By Phase:**
 
@@ -34,10 +34,10 @@ Progress: [███████████████████████
 | 05-widget-core-flow | 3 | 9 min | 3 min |
 | 06-widget-voice-security | 2 | 3 min | 2 min |
 | 07-rate-limiting-logging | 3 | 13 min | 4 min |
-| 08-realtime-dashboard | 1 | 2 min | 2 min |
+| 08-realtime-dashboard | 2 | 7 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 06-01 (2 min), 07-01 (4 min), 07-03 (2 min), 07-02 (7 min), 08-01 (2 min)
+- Last 5 plans: 07-01 (4 min), 07-03 (2 min), 07-02 (7 min), 08-01 (2 min), 08-02 (5 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -148,6 +148,11 @@ Recent decisions affecting current work:
 - [08-01]: Nullable-first backfill pattern for org_id on escalations: add nullable, UPDATE from clients join, SET NOT NULL
 - [08-01]: createEscalation resolves org_id from client as fallback so existing callers need no changes
 - [08-01]: Direct inserts in Twilio/Vapi/website-builder do separate org_id lookup rather than refactoring to use createEscalation
+- [08-02]: Refetch-on-event for dashboard KPIs rather than delta computation: simpler, reliable at admin scale
+- [08-02]: Server queries include .eq('org_id', orgId) for defense-in-depth alongside RLS
+- [08-02]: INSERT payloads show 'Unknown' for joined client data (acceptable v1 tradeoff)
+- [08-02]: todayInteractionsCount passed as static prop since interaction_log is not in realtime publication
+- [08-02]: Static dashboard sections pass as children to avoid unnecessary client-side rendering
 
 ### Pending Todos
 
@@ -162,5 +167,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 08-01-PLAN.md (org_id on escalations + realtime publication)
+Stopped at: Completed 08-02-PLAN.md (realtime client components). All phases complete.
 Resume file: None
