@@ -12,7 +12,7 @@ Brownfield completion sprint closing the final 25% of a working onboarding platf
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Security Foundation** - Patch three active exploits and harden all public entry points before anything else ships
+- [x] **Phase 1: Security Foundation** - Patch three active exploits and harden all public entry points before anything else ships (completed 2026-03-13)
 - [ ] **Phase 2: Self-Service Signup** - Agencies complete Stripe checkout and get a provisioned org with admin access automatically
 - [ ] **Phase 3: Admin CRUD: Content** - Admins can create and manage service definitions, packages, and message templates
 - [ ] **Phase 4: Org Settings + Per-Org Isolation** - Each org has its own credentials, phone number, and isolated operational config
@@ -125,7 +125,7 @@ Note: Phase 5 depends on Phase 3 (service definitions drive widget steps). Phase
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Security Foundation | 4/5 | In Progress|  |
+| 1. Security Foundation | 4/5 | Complete    | 2026-03-13 |
 | 2. Self-Service Signup | 0/TBD | Not started | - |
 | 3. Admin CRUD: Content | 0/TBD | Not started | - |
 | 4. Org Settings + Per-Org Isolation | 0/TBD | Not started | - |
