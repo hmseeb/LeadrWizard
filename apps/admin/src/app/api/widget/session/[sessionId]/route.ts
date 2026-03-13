@@ -63,6 +63,13 @@ export async function GET(
       );
     }
 
+    // Load org voice config
+    const { data: org } = await supabase
+      .from("organizations")
+      .select("elevenlabs_agent_id")
+      .eq("id", session.org_id)
+      .single();
+
     // Load client (only safe fields, not full record)
     const { data: client } = await supabase
       .from("clients")
@@ -194,6 +201,9 @@ export async function GET(
         })),
         currentQuestion,
         completionPct,
+        voiceConfig: {
+          elevenlabsAgentId: org?.elevenlabs_agent_id || null,
+        },
       },
       { headers: corsHeaders }
     );

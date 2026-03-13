@@ -19,6 +19,7 @@ export interface WizardSessionState {
   mode: "voice" | "visual";
   submitting: boolean;
   stepError: string | null;
+  voiceConfig: { elevenlabsAgentId: string | null } | null;
 }
 
 export interface ServiceWithProgress {
@@ -74,6 +75,7 @@ export function useWizardSession(sessionId: string, apiBaseUrl?: string) {
     mode: "visual",
     submitting: false,
     stepError: null,
+    voiceConfig: null,
   });
 
   const baseUrl = apiBaseUrl || "";
@@ -98,6 +100,7 @@ export function useWizardSession(sessionId: string, apiBaseUrl?: string) {
         services: data.services,
         currentQuestion: data.currentQuestion,
         completionPct: data.completionPct,
+        voiceConfig: data.voiceConfig || null,
         submitting: false,
         stepError: null,
       }));
