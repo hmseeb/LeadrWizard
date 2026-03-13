@@ -10,6 +10,7 @@ import {
   Users,
   Radio,
   AlertTriangle,
+  Inbox,
   Settings,
   CreditCard,
 } from "lucide-react";
@@ -22,6 +23,7 @@ const navigation = [
   { name: "Packages", href: "/packages", icon: Package },
   { name: "Templates", href: "/templates", icon: MessageSquare },
   { name: "Escalations", href: "/escalations", icon: AlertTriangle },
+  { name: "Dead Letter Queue", href: "/dead-letter-queue", icon: Inbox },
   { name: "Billing", href: "/billing", icon: CreditCard },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
