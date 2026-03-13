@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 ## Current Position
 
 Phase: 7 of 8 (Rate Limiting + Structured Logging)
-Plan: 3 of 3 in current phase
-Status: In Progress
-Last activity: 2026-03-14 — Completed plan 07-03 (middleware rate limiting + correlation ID)
+Plan: 3 of 3 in current phase (all complete)
+Status: Phase Complete
+Last activity: 2026-03-14 — Completed plan 07-02 (console-to-pino migration + Sentry capture)
 
 Progress: [████████████████████████] 96%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 23
-- Average duration: 3 min
-- Total execution time: 80 min
+- Total plans completed: 24
+- Average duration: 4 min
+- Total execution time: 87 min
 
 **By Phase:**
 
@@ -33,10 +33,10 @@ Progress: [███████████████████████
 | 04-org-settings-isolation | 4 | 15 min | 4 min |
 | 05-widget-core-flow | 3 | 9 min | 3 min |
 | 06-widget-voice-security | 2 | 3 min | 2 min |
-| 07-rate-limiting-logging | 2 | 6 min | 3 min |
+| 07-rate-limiting-logging | 3 | 13 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 05-03 (3 min), 06-02 (1 min), 06-01 (2 min), 07-01 (4 min), 07-03 (2 min)
+- Last 5 plans: 06-02 (1 min), 06-01 (2 min), 07-01 (4 min), 07-03 (2 min), 07-02 (7 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -140,6 +140,10 @@ Recent decisions affecting current work:
 - [07-03]: Rate limiting runs before Supabase auth to short-circuit early on abuse
 - [07-03]: Fail-open on Upstash errors so rate limiter outage never blocks legitimate requests
 - [07-03]: Correlation ID set on both request (for downstream handlers) and response (for client debugging)
+- [07-02]: Module-level loggers for shared package files (called outside request context, no correlation_id)
+- [07-02]: No Sentry in shared package (framework-agnostic, errors bubble up to route handlers)
+- [07-02]: err key (not error) in pino log objects to trigger built-in error serializer
+- [07-02]: Vapi route uses moduleLog for helper functions outside handler scope
 
 ### Pending Todos
 
@@ -154,5 +158,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 07-03-PLAN.md (middleware rate limiting + correlation ID injection)
+Stopped at: Completed 07-02-PLAN.md (console-to-pino migration + Sentry capture)
 Resume file: None
