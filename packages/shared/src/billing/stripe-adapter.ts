@@ -227,6 +227,93 @@ export async function createBillingPortalSession(
 }
 
 /**
+ * Handles a brand-new agency signup from Stripe Checkout.
+ * 1. Atomically creates org + subscription via provision_org RPC
+ * 2. Invites admin user via Supabase auth (sends welcome email)
+ * 3. Creates org membership linking the user to the org
+ *
+ * Order matters: org must exist before user invite, user must exist before membership.
+ * The invite email takes a few seconds to deliver, providing natural buffering
+ * so the membership record exists before the user clicks the link.
+ *
+ * Testable locally via Stripe CLI (SIGN-04):
+ *   stripe listen --forward-to localhost:3000/api/webhooks/stripe
+ *   stripe trigger checkout.session.completed
+ */
+async function handleNewOrgSignup(
+  supabase: SupabaseClient,
+  session: Stripe.Checkout.Session
+): Promise<void> {
+  const orgName = session.metadata?.org_name || "My Agency";
+  const adminEmail =
+    session.metadata?.admin_email ||
+    session.customer_details?.email ||
+    "";
+  const planSlug = session.metadata?.plan_slug || "starter";
+  const subscriptionId = session.subscription as string;
+  const customerId = session.customer as string;
+
+  if (!adminEmail) {
+    throw new Error("No admin email found in checkout session metadata or customer_details");
+  }
+
+  // Step 1: Atomically create org + subscription
+  const { data: provisionResult, error: provisionError } = await supabase.rpc(
+    "provision_org",
+    {
+      p_org_name: orgName,
+      p_admin_email: adminEmail,
+      p_plan_slug: planSlug,
+      p_stripe_sub_id: subscriptionId,
+      p_stripe_cust_id: customerId,
+    }
+  );
+
+  if (provisionError) {
+    throw new Error(`Org provisioning failed: ${provisionError.message}`);
+  }
+
+  const result = provisionResult as { org_id: string; idempotent: boolean };
+
+  // If idempotent (duplicate webhook), skip user creation
+  if (result.idempotent) {
+    return;
+  }
+
+  const orgId = result.org_id;
+
+  // Step 2: Create auth user and send invite email via Supabase
+  // This uses the service role client (createServerClient), which has admin access.
+  // inviteUserByEmail creates the auth user AND sends the invite email in one call.
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+  const { data: inviteData, error: inviteError } =
+    await supabase.auth.admin.inviteUserByEmail(adminEmail, {
+      data: {
+        org_id: orgId,
+        role: "owner",
+        org_name: orgName,
+      },
+      redirectTo: `${appUrl}/callback`,
+    });
+
+  if (inviteError) {
+    throw new Error(`User invite failed: ${inviteError.message}`);
+  }
+
+  // Step 3: Create org membership linking the invited user to the org
+  const { error: memberError } = await supabase.from("org_members").insert({
+    org_id: orgId,
+    user_id: inviteData.user.id,
+    role: "owner",
+  });
+
+  if (memberError) {
+    throw new Error(`Membership creation failed: ${memberError.message}`);
+  }
+}
+
+/**
  * Process a Stripe webhook event.
  */
 export async function processStripeWebhook(
@@ -236,42 +323,47 @@ export async function processStripeWebhook(
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
-      const orgId = session.metadata?.org_id;
-      const planSlug = session.metadata?.plan_slug;
-      const subscriptionId = session.subscription as string;
-      const customerId = session.customer as string;
+      const isNewSignup = session.metadata?.signup === "true";
 
-      if (orgId && planSlug) {
-        // Get plan
-        const { data: plan } = await supabase
-          .from("subscription_plans")
-          .select("id")
-          .eq("slug", planSlug)
-          .single();
+      if (isNewSignup) {
+        // NEW SIGNUP: agency completing checkout for the first time
+        await handleNewOrgSignup(supabase, session);
+      } else {
+        // EXISTING ORG: upgrading or purchasing a plan
+        const orgId = session.metadata?.org_id;
+        const planSlug = session.metadata?.plan_slug;
+        const subscriptionId = session.subscription as string;
+        const customerId = session.customer as string;
 
-        if (plan) {
-          // Create subscription record
-          await supabase.from("org_subscriptions").insert({
-            org_id: orgId,
-            plan_id: plan.id,
-            stripe_subscription_id: subscriptionId,
-            stripe_customer_id: customerId,
-            status: "active",
-            current_period_start: new Date().toISOString(),
-            current_period_end: new Date(
-              Date.now() + 30 * 24 * 60 * 60 * 1000
-            ).toISOString(),
-          });
+        if (orgId && planSlug) {
+          const { data: plan } = await supabase
+            .from("subscription_plans")
+            .select("id")
+            .eq("slug", planSlug)
+            .single();
 
-          // Update org
-          await supabase
-            .from("organizations")
-            .update({
+          if (plan) {
+            await supabase.from("org_subscriptions").insert({
+              org_id: orgId,
+              plan_id: plan.id,
+              stripe_subscription_id: subscriptionId,
               stripe_customer_id: customerId,
-              plan_slug: planSlug,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", orgId);
+              status: "active",
+              current_period_start: new Date().toISOString(),
+              current_period_end: new Date(
+                Date.now() + 30 * 24 * 60 * 60 * 1000
+              ).toISOString(),
+            });
+
+            await supabase
+              .from("organizations")
+              .update({
+                stripe_customer_id: customerId,
+                plan_slug: planSlug,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", orgId);
+          }
         }
       }
       break;
