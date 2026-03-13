@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 Phase: 4 of 8 (Org Settings + Per-Org Isolation)
 Plan: 4 of 4 in current phase
 Status: Executing
-Last activity: 2026-03-14 — Completed plan 04-04 (dead letter queue)
+Last activity: 2026-03-14 — Completed plan 04-03 (org settings UI)
 
 Progress: [██████████████] 68%
 
@@ -33,7 +33,7 @@ Progress: [██████████████] 68%
 | 04-org-settings-isolation | 3 | 9 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-02 (5 min), 03-03 (3 min), 03-04 (4 min), 04-01 (3 min), 04-04 (3 min)
+- Last 5 plans: 03-03 (3 min), 03-04 (4 min), 04-01 (3 min), 04-04 (3 min), 04-03 (3 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -105,6 +105,11 @@ Recent decisions affecting current work:
 - [04-04]: Escalation creation failure does not block DLQ insertion (try/catch around createEscalation)
 - [04-04]: retryDLQEntry resets attempt_count to 0 and status to in_progress for fresh retry cycle
 - [04-04]: GHL handlers updated from 3 to 5 attempts with exponential backoff (was fixed 30min intervals)
+- [04-03]: Encrypted values NEVER sent to client: server component passes has_*_creds booleans, not encrypted strings
+- [04-03]: Credential inputs always empty on load (security best practice, admin re-enters to update)
+- [04-03]: Cadence display is read-only for v1, editing deferred to future phase
+- [04-03]: Provision number button appears only after Twilio creds saved
+- [04-03]: Dynamic import for provisionTwilioNumber to avoid pulling automations into admin bundle
 
 ### Pending Todos
 
@@ -119,5 +124,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 04-04-PLAN.md (dead letter queue)
+Stopped at: Completed 04-03-PLAN.md (org settings UI)
 Resume file: None
