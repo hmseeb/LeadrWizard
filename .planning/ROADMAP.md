@@ -34,7 +34,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Removing `body.org_id` from a payment webhook payload does not allow the request to proceed without a valid API key or signature
   5. A widget response submission that bypasses the API route (direct anon insert) is rejected at the database level
   6. A partial provisioning failure during payment handling rolls back all created records atomically — no orphaned client or client_package rows exist
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — DB migrations: idempotency table + RLS hardening + provision_client function
+- [ ] 01-02-PLAN.md — Install stripe SDK + refactor stripe-adapter.ts to use SDK client
+- [ ] 01-03-PLAN.md — Stripe webhook signature verification (SEC-01) + idempotency in both webhooks (SEC-02) + remove body.org_id fallback (SEC-04)
+- [ ] 01-04-PLAN.md — Atomic payment handler via supabase.rpc('provision_client') (ORG-03)
+- [ ] 01-05-PLAN.md — Widget response API route with CORS + refactor widget hook write path (SEC-05)
 
 ### Phase 2: Self-Service Signup
 **Goal**: An agency can go from paying on Stripe to having a provisioned org with admin access and an actionable empty state, without any manual intervention
@@ -118,7 +125,7 @@ Note: Phase 5 depends on Phase 3 (service definitions drive widget steps). Phase
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Security Foundation | 0/TBD | Not started | - |
+| 1. Security Foundation | 0/5 | Not started | - |
 | 2. Self-Service Signup | 0/TBD | Not started | - |
 | 3. Admin CRUD: Content | 0/TBD | Not started | - |
 | 4. Org Settings + Per-Org Isolation | 0/TBD | Not started | - |
