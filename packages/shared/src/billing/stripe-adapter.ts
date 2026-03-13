@@ -1,3 +1,4 @@
+import Stripe from "stripe";
 import type { SupabaseClient } from "../supabase/client";
 import type { SubscriptionPlan, OrgSubscription } from "../types";
 
@@ -10,59 +11,28 @@ import type { SubscriptionPlan, OrgSubscription } from "../types";
 
 export type { SubscriptionPlan, OrgSubscription };
 
-interface StripeConfig {
-  secretKey: string;
-  webhookSecret: string;
-  publishableKey: string;
-}
-
-function getStripeConfig(): StripeConfig {
+function getStripeClient(): Stripe {
   const secretKey = process.env.STRIPE_SECRET_KEY;
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-
   if (!secretKey) {
     throw new Error("Missing STRIPE_SECRET_KEY");
   }
-
-  return {
-    secretKey,
-    webhookSecret: webhookSecret || "",
-    publishableKey: publishableKey || "",
-  };
+  return new Stripe(secretKey, { apiVersion: "2026-02-25.clover" });
 }
 
-async function stripeRequest(
-  path: string,
-  options: {
-    method?: string;
-    body?: Record<string, string>;
-  } = {}
-): Promise<Record<string, unknown>> {
-  const config = getStripeConfig();
-
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${config.secretKey}`,
-  };
-
-  let requestBody: string | undefined;
-  if (options.body) {
-    headers["Content-Type"] = "application/x-www-form-urlencoded";
-    requestBody = new URLSearchParams(options.body).toString();
+/**
+ * Verifies a Stripe webhook signature and returns the parsed event.
+ * Throws the original Stripe error on failure — callers should catch and return 400.
+ */
+export function constructEvent(
+  rawBody: string,
+  signature: string,
+  secret: string
+): Stripe.Event {
+  if (!secret) {
+    throw new Error("STRIPE_WEBHOOK_SECRET is not set");
   }
-
-  const response = await fetch(`https://api.stripe.com/v1${path}`, {
-    method: options.method || "GET",
-    headers,
-    ...(requestBody ? { body: requestBody } : {}),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`Stripe API error (${response.status}): ${errorBody}`);
-  }
-
-  return (await response.json()) as Record<string, unknown>;
+  const stripe = getStripeClient();
+  return stripe.webhooks.constructEvent(rawBody, signature, secret);
 }
 
 /**
@@ -74,16 +44,14 @@ export async function createStripeCustomer(
   email: string,
   name: string
 ): Promise<string> {
-  const customer = await stripeRequest("/customers", {
-    method: "POST",
-    body: {
-      email,
-      name,
-      "metadata[org_id]": orgId,
-    },
+  const stripe = getStripeClient();
+  const customer = await stripe.customers.create({
+    email,
+    name,
+    metadata: { org_id: orgId },
   });
 
-  const customerId = customer.id as string;
+  const customerId = customer.id;
 
   // Store customer ID on org
   await supabase
@@ -148,28 +116,33 @@ export async function createCheckoutSession(
     }
   }
 
-  const sessionParams: Record<string, string> = {
+  const stripe = getStripeClient();
+
+  const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode: "subscription",
-    "line_items[0][price]": (plan as SubscriptionPlan).stripe_price_id!,
-    "line_items[0][quantity]": "1",
+    line_items: [
+      {
+        price: (plan as SubscriptionPlan).stripe_price_id!,
+        quantity: 1,
+      },
+    ],
     success_url: successUrl,
     cancel_url: cancelUrl,
-    "metadata[org_id]": orgId,
-    "metadata[plan_slug]": planSlug,
+    metadata: {
+      org_id: orgId,
+      plan_slug: planSlug,
+    },
   };
 
   if (customerId) {
     sessionParams.customer = customerId;
   }
 
-  const session = await stripeRequest("/checkout/sessions", {
-    method: "POST",
-    body: sessionParams,
-  });
+  const session = await stripe.checkout.sessions.create(sessionParams);
 
   return {
     checkoutUrl: session.url as string,
-    sessionId: session.id as string,
+    sessionId: session.id,
   };
 }
 
@@ -192,15 +165,13 @@ export async function createBillingPortalSession(
     throw new Error("Organization has no Stripe customer");
   }
 
-  const session = await stripeRequest("/billing_portal/sessions", {
-    method: "POST",
-    body: {
-      customer: customerId,
-      return_url: returnUrl,
-    },
+  const stripe = getStripeClient();
+  const session = await stripe.billingPortal.sessions.create({
+    customer: customerId,
+    return_url: returnUrl,
   });
 
-  return session.url as string;
+  return session.url;
 }
 
 /**
@@ -208,16 +179,13 @@ export async function createBillingPortalSession(
  */
 export async function processStripeWebhook(
   supabase: SupabaseClient,
-  event: {
-    type: string;
-    data: { object: Record<string, unknown> };
-  }
+  event: Stripe.Event
 ): Promise<void> {
   switch (event.type) {
     case "checkout.session.completed": {
-      const session = event.data.object;
-      const orgId = (session.metadata as Record<string, string>)?.org_id;
-      const planSlug = (session.metadata as Record<string, string>)?.plan_slug;
+      const session = event.data.object as Stripe.Checkout.Session;
+      const orgId = session.metadata?.org_id;
+      const planSlug = session.metadata?.plan_slug;
       const subscriptionId = session.subscription as string;
       const customerId = session.customer as string;
 
@@ -258,9 +226,14 @@ export async function processStripeWebhook(
     }
 
     case "customer.subscription.updated": {
-      const subscription = event.data.object;
-      const subscriptionId = subscription.id as string;
-      const status = subscription.status as string;
+      const subscription = event.data.object as Stripe.Subscription;
+      const subscriptionId = subscription.id;
+      const status = subscription.status;
+
+      // current_period_start/end moved to SubscriptionItem in Stripe v20
+      const firstItem = subscription.items?.data?.[0];
+      const periodStart = firstItem?.current_period_start ?? null;
+      const periodEnd = firstItem?.current_period_end ?? null;
 
       const statusMap: Record<string, string> = {
         active: "active",
@@ -274,17 +247,12 @@ export async function processStripeWebhook(
         .from("org_subscriptions")
         .update({
           status: statusMap[status] || "active",
-          cancel_at_period_end:
-            (subscription.cancel_at_period_end as boolean) || false,
-          current_period_start: subscription.current_period_start
-            ? new Date(
-                (subscription.current_period_start as number) * 1000
-              ).toISOString()
+          cancel_at_period_end: subscription.cancel_at_period_end || false,
+          current_period_start: periodStart
+            ? new Date(periodStart * 1000).toISOString()
             : null,
-          current_period_end: subscription.current_period_end
-            ? new Date(
-                (subscription.current_period_end as number) * 1000
-              ).toISOString()
+          current_period_end: periodEnd
+            ? new Date(periodEnd * 1000).toISOString()
             : null,
           updated_at: new Date().toISOString(),
         })
@@ -293,8 +261,8 @@ export async function processStripeWebhook(
     }
 
     case "customer.subscription.deleted": {
-      const subscription = event.data.object;
-      const subscriptionId = subscription.id as string;
+      const subscription = event.data.object as Stripe.Subscription;
+      const subscriptionId = subscription.id;
 
       await supabase
         .from("org_subscriptions")
@@ -307,8 +275,15 @@ export async function processStripeWebhook(
     }
 
     case "invoice.payment_failed": {
-      const invoice = event.data.object;
-      const subscriptionId = invoice.subscription as string;
+      const invoice = event.data.object as Stripe.Invoice;
+      // In Stripe v20, subscription is accessed via invoice.parent?.subscription_details
+      const parent = invoice.parent as
+        | { subscription_details?: { subscription?: string | Stripe.Subscription } }
+        | null
+        | undefined;
+      const rawSub = parent?.subscription_details?.subscription;
+      const subscriptionId =
+        typeof rawSub === "string" ? rawSub : rawSub?.id ?? null;
 
       if (subscriptionId) {
         await supabase
@@ -361,7 +336,10 @@ export async function checkPlanLimits(
     .eq("id", sub.plan_id)
     .single();
 
-  const typedPlan = plan as { max_clients: number | null; max_services: number | null } | null;
+  const typedPlan = plan as {
+    max_clients: number | null;
+    max_services: number | null;
+  } | null;
 
   const { count: clientCount } = await supabase
     .from("clients")
