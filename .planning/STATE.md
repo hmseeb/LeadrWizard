@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Core value:** Clients get onboarded without human intervention. The agent asks the right questions through the right channel at the right time, and services get set up automatically.
-**Current focus:** Phase 6 — Widget Voice + Security
+**Current focus:** Phase 7 — Rate Limiting + Structured Logging
 
 ## Current Position
 
-Phase: 6 of 8 (Widget Voice + Security)
-Plan: 2 of 2 in current phase
-Status: Phase Complete
-Last activity: 2026-03-14 — Completed plan 06-01 (widget voice + form hybrid)
+Phase: 7 of 8 (Rate Limiting + Structured Logging)
+Plan: 1 of 3 in current phase
+Status: In Progress
+Last activity: 2026-03-14 — Completed plan 07-01 (infra deps + logger + rate limiter + Sentry)
 
-Progress: [██████████████████████] 88%
+Progress: [███████████████████████] 92%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 21
+- Total plans completed: 22
 - Average duration: 4 min
-- Total execution time: 74 min
+- Total execution time: 78 min
 
 **By Phase:**
 
@@ -33,9 +33,10 @@ Progress: [██████████████████████] 8
 | 04-org-settings-isolation | 4 | 15 min | 4 min |
 | 05-widget-core-flow | 3 | 9 min | 3 min |
 | 06-widget-voice-security | 2 | 3 min | 2 min |
+| 07-rate-limiting-logging | 1 | 4 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 05-01 (3 min), 05-02 (3 min), 05-03 (3 min), 06-02 (1 min), 06-01 (2 min)
+- Last 5 plans: 05-02 (3 min), 05-03 (3 min), 06-02 (1 min), 06-01 (2 min), 07-01 (4 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -131,6 +132,10 @@ Recent decisions affecting current work:
 - [06-01]: Completion screen shows in voice mode via StepRenderer fallthrough (no mode-switch forced)
 - [06-02]: Three-tier origin detection: ancestorOrigins (Chromium) > document.referrer (Firefox) > window.location.origin (direct script tag)
 - [06-02]: Validation runs before any DOM manipulation or React mounting to prevent flash of content on unauthorized domains
+- [07-01]: Lazy Redis init via getRedis() prevents boot crashes when UPSTASH env vars are missing (build time, tests)
+- [07-01]: pino-pretty installed as regular dependency (not dev) since pino resolves transport targets at runtime
+- [07-01]: Sentry v10 with tunnelRoute /monitoring to bypass ad blockers on client-side error reporting
+- [07-01]: serverExternalPackages at top level per Next.js 15 convention (not under experimental)
 
 ### Pending Todos
 
@@ -145,5 +150,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 06-01-PLAN.md (widget voice + form hybrid) — Phase 6 complete
+Stopped at: Completed 07-01-PLAN.md (infra deps + pino logger + Upstash rate limiter + Sentry config)
 Resume file: None
