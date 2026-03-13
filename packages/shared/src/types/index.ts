@@ -290,6 +290,60 @@ export interface AgentDecision {
   options?: string[];
 }
 
+// --- Billing ---
+
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  price_cents: number;
+  billing_interval: "monthly" | "yearly";
+  max_clients: number | null;
+  max_services: number | null;
+  features: string[];
+  stripe_price_id: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrgSubscription {
+  id: string;
+  org_id: string;
+  plan_id: string;
+  stripe_subscription_id: string | null;
+  stripe_customer_id: string | null;
+  status: "active" | "past_due" | "cancelled" | "trialing";
+  current_period_start: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrgInvitation {
+  id: string;
+  org_id: string;
+  email: string;
+  role: OrgMemberRole;
+  invited_by: string;
+  token: string;
+  accepted_at: string | null;
+  expires_at: string;
+  created_at: string;
+}
+
+export interface UsageRecord {
+  id: string;
+  org_id: string;
+  metric: string;
+  quantity: number;
+  period_start: string;
+  period_end: string;
+  created_at: string;
+}
+
 // --- Analytics ---
 
 export interface AnalyticsSnapshot {

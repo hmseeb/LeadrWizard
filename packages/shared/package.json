@@ -11,7 +11,9 @@
     "./agent": "./src/agent/index.ts",
     "./automations": "./src/automations/index.ts",
     "./comms": "./src/comms/index.ts",
-    "./utils": "./src/utils/index.ts"
+    "./utils": "./src/utils/index.ts",
+    "./billing": "./src/billing/index.ts",
+    "./tenant": "./src/tenant/index.ts"
   },
   "scripts": {
     "build": "tsc",
