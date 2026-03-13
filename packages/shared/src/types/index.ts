@@ -145,6 +145,36 @@ export interface NicheTemplate {
   updated_at: string;
 }
 
+// --- Message Templates ---
+
+export type MessageChannel = "sms" | "email" | "voice";
+
+export interface MessageTemplate {
+  id: string;
+  org_id: string;
+  name: string;
+  slug: string;
+  channel: MessageChannel;
+  subject: string | null;
+  body: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Available variables for message template interpolation.
+ * These are injected at send time from client/session context.
+ * Displayed as reference in the template editor UI.
+ */
+export const TEMPLATE_VARIABLES = [
+  { key: "name", label: "Client Name", example: "Jane Doe" },
+  { key: "businessName", label: "Business Name", example: "Jane's Bakery" },
+  { key: "packageName", label: "Package Name", example: "Pro Bundle" },
+  { key: "onboardingUrl", label: "Onboarding URL", example: "https://app.example.com/onboard?s=abc123" },
+  { key: "itemsRemaining", label: "Items Remaining", example: "3" },
+] as const;
+
 // --- Clients ---
 
 export interface Client {
