@@ -33,10 +33,10 @@ Requirements for production launch. Each maps to roadmap phases.
 
 ### Widget
 
-- [ ] **WIDG-01**: Widget loads session by sessionId, fetches questions from API, and renders step-by-step form with progress indicator
+- [x] **WIDG-01**: Widget loads session by sessionId, fetches questions from API, and renders step-by-step form with progress indicator
 - [ ] **WIDG-02**: Widget supports voice + form hybrid: ElevenLabs voice AND form-based data collection in same session, client can switch mode mid-flow
-- [ ] **WIDG-03**: Widget submits responses per step via authenticated API route, advances to next step on success
-- [ ] **WIDG-04**: Widget shows completion state with next-steps messaging after all required fields collected
+- [x] **WIDG-03**: Widget submits responses per step via authenticated API route, advances to next step on success
+- [x] **WIDG-04**: Widget shows completion state with next-steps messaging after all required fields collected
 - [ ] **WIDG-05**: Widget handles errors per step with retry (3 attempts, exponential backoff) and fallback message if all fail
 - [ ] **WIDG-06**: Widget supports optional `allowedOrigins` parameter in `init()` to prevent embedding on unauthorized domains
 
@@ -89,10 +89,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CRUD-03 | Phase 3 | Complete |
 | CRUD-04 | Phase 4 | Complete |
 | CRUD-05 | Phase 4 | Complete |
-| WIDG-01 | Phase 5 | Pending |
+| WIDG-01 | Phase 5 | Complete |
 | WIDG-02 | Phase 6 | Pending |
-| WIDG-03 | Phase 5 | Pending |
-| WIDG-04 | Phase 5 | Pending |
+| WIDG-03 | Phase 5 | Complete |
+| WIDG-04 | Phase 5 | Complete |
 | WIDG-05 | Phase 5 | Pending |
 | WIDG-06 | Phase 6 | Pending |
 | ORG-01 | Phase 4 | Complete |

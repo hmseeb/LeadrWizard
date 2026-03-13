@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Core value:** Clients get onboarded without human intervention. The agent asks the right questions through the right channel at the right time, and services get set up automatically.
-**Current focus:** Phase 4 — Org Settings + Per-Org Isolation
+**Current focus:** Phase 5 — Widget Core Flow
 
 ## Current Position
 
-Phase: 4 of 8 (Org Settings + Per-Org Isolation)
-Plan: 4 of 4 in current phase
+Phase: 5 of 8 (Widget Core Flow)
+Plan: 1 of 3 in current phase
 Status: Executing
-Last activity: 2026-03-14 — Completed plan 04-03 (org settings UI)
+Last activity: 2026-03-14 — Completed plan 05-01 (widget core flow API)
 
-Progress: [██████████████] 68%
+Progress: [███████████████] 71%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 16
+- Total plans completed: 17
 - Average duration: 4 min
-- Total execution time: 62 min
+- Total execution time: 65 min
 
 **By Phase:**
 
@@ -31,9 +31,10 @@ Progress: [██████████████] 68%
 | 02-self-service-signup | 3 | 8 min | 3 min |
 | 03-admin-crud-content | 4 | 14 min | 4 min |
 | 04-org-settings-isolation | 4 | 15 min | 4 min |
+| 05-widget-core-flow | 1 | 3 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-04 (4 min), 04-01 (3 min), 04-04 (3 min), 04-03 (3 min), 04-02 (6 min)
+- Last 5 plans: 04-01 (3 min), 04-04 (3 min), 04-03 (3 min), 04-02 (6 min), 05-01 (3 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -114,6 +115,10 @@ Recent decisions affecting current work:
 - [04-02]: getOrgCredentials returns empty object when org has no credentials, enabling graceful fallback
 - [04-02]: Twilio provisioner uses raw REST API (no SDK) consistent with existing twilio-sms.ts pattern
 - [04-02]: Config functions (getTwilioConfig, getGHLConfig, getVapiConfig) exported for direct use by settings UI
+- [05-01]: Service role client for widget reads: bypasses RLS since widget has no auth context, server validates session existence
+- [05-01]: Both active AND completed sessions returned from GET: completed sessions load completion screen, only invalid/abandoned get 404
+- [05-01]: Client fields limited to id/name/business_name: email and phone not exposed to widget for privacy
+- [05-01]: completionPct updated on every POST submission: dashboard always shows accurate progress
 
 ### Pending Todos
 
@@ -128,5 +133,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 04-02-PLAN.md (per-org credential isolation)
+Stopped at: Completed 05-01-PLAN.md (widget core flow API)
 Resume file: None
