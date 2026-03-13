@@ -54,6 +54,16 @@ export interface Organization {
   settings: OrgSettings;
   created_at: string;
   updated_at: string;
+  // Per-org encrypted credentials (Phase 4)
+  twilio_account_sid_encrypted: string | null;
+  twilio_auth_token_encrypted: string | null;
+  twilio_phone_number: string | null;
+  ghl_api_key_encrypted: string | null;
+  ghl_location_id: string | null;
+  ghl_company_id: string | null;
+  vapi_api_key_encrypted: string | null;
+  vapi_assistant_id: string | null;
+  elevenlabs_agent_id: string | null;
 }
 
 export interface OrgSettings {
@@ -294,6 +304,49 @@ export interface Escalation {
   assigned_to: string | null;
   resolved_at: string | null;
   created_at: string;
+}
+
+// --- Dead Letter Queue ---
+
+export type DLQStatus = "active" | "retried" | "dismissed";
+
+export interface DeadLetterQueueItem {
+  id: string;
+  original_table: string;
+  original_id: string;
+  task_type: string | null;
+  org_id: string;
+  client_id: string | null;
+  last_error: string | null;
+  attempt_count: number;
+  payload: Record<string, unknown>;
+  retried_at: string | null;
+  dismissed_at: string | null;
+  created_at: string;
+}
+
+/**
+ * Decrypted org credentials for adapter consumption.
+ * Built by decrypting the _encrypted columns on Organization.
+ */
+export interface OrgCredentials {
+  twilio?: {
+    accountSid: string;
+    authToken: string;
+    phoneNumber: string;
+  };
+  ghl?: {
+    apiKey: string;
+    locationId: string;
+    companyId?: string;
+  };
+  vapi?: {
+    apiKey: string;
+    assistantId: string;
+  };
+  elevenlabs?: {
+    agentId: string;
+  };
 }
 
 // --- Agent Types ---
