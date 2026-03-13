@@ -5,6 +5,7 @@ import {
   logInboundSMS,
   sendSMS,
   handleInboundSMSReply,
+  validateTwilioSignature,
 } from "@leadrwizard/shared/comms";
 
 /**
@@ -26,9 +27,16 @@ export async function POST(request: Request) {
       body = await request.json();
     }
 
-    // TODO: Validate Twilio signature in production
-    // const signature = request.headers.get("x-twilio-signature") || "";
-    // const isValid = await validateTwilioSignature(signature, requestUrl, body);
+    // Validate Twilio signature to prevent spoofed requests
+    const signature = request.headers.get("x-twilio-signature") || "";
+    const requestUrl = new URL(request.url);
+    const webhookUrl = `${requestUrl.protocol}//${requestUrl.host}${requestUrl.pathname}`;
+
+    const isValid = await validateTwilioSignature(signature, webhookUrl, body);
+    if (!isValid) {
+      console.warn("Invalid Twilio signature — rejecting webhook");
+      return new NextResponse("Forbidden", { status: 403 });
+    }
 
     const sms = parseInboundSMS(body);
 

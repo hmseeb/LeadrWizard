@@ -77,7 +77,21 @@ export function WizardWidget({
 
       {/* Content Area */}
       {mode === "voice" ? (
-        <VoiceBot sessionId={sessionId} isActive={true} />
+        <VoiceBot
+          sessionId={sessionId}
+          isActive={true}
+          onAnswer={(fieldKey, value) => {
+            const serviceWithMissing = services.find((s) =>
+              s.missingFields.some((f) => f.key === fieldKey)
+            );
+            submitResponse(
+              fieldKey,
+              value,
+              serviceWithMissing?.clientService.id || null,
+              "voice"
+            );
+          }}
+        />
       ) : currentQuestion ? (
         <StepRenderer
           question={currentQuestion}

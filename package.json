@@ -6,11 +6,15 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "type-check": "turbo type-check",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "clean": "turbo clean"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.0",
     "turbo": "^2.4.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.0"
   },
   "packageManager": "pnpm@10.29.3",
   "pnpm": {
