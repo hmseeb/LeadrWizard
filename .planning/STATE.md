@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Core value:** Clients get onboarded without human intervention. The agent asks the right questions through the right channel at the right time, and services get set up automatically.
-**Current focus:** Phase 2 — Self-Service Signup
+**Current focus:** Phase 3 — Admin CRUD: Content
 
 ## Current Position
 
-Phase: 2 of 8 (Self-Service Signup) -- COMPLETE
-Plan: 3 of 3 in current phase -- COMPLETE
-Status: Phase 2 complete, ready for Phase 3
-Last activity: 2026-03-14 — Completed plan 02-03 (setup wizard + signup success page)
+Phase: 3 of 8 (Admin CRUD: Content)
+Plan: 1 of 4 in current phase
+Status: Executing Phase 3
+Last activity: 2026-03-14 — Completed plan 03-01 (message templates migration + types)
 
-Progress: [████████░░] 40%
+Progress: [████████░░] 45%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
+- Total plans completed: 9
 - Average duration: 4 min
-- Total execution time: 33 min
+- Total execution time: 35 min
 
 **By Phase:**
 
@@ -29,9 +29,10 @@ Progress: [████████░░] 40%
 |-------|-------|-------|----------|
 | 01-security-foundation | 5 | 25 min | 5 min |
 | 02-self-service-signup | 3 | 8 min | 3 min |
+| 03-admin-crud-content | 1 | 2 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-04 (3 min), 01-05 (8 min), 02-01 (1 min), 02-02 (3 min), 02-03 (4 min)
+- Last 5 plans: 01-05 (8 min), 02-01 (1 min), 02-02 (3 min), 02-03 (4 min), 03-01 (2 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -77,6 +78,9 @@ Recent decisions affecting current work:
 - [02-03]: Integration check looks for twilio_account_sid or ghl_api_key in org settings JSON
 - [02-03]: getUserOrg imported from @leadrwizard/shared/tenant for org resolution
 - [02-03]: Success page placed in (auth) route group for minimal layout (no sidebar)
+- [03-01]: channel uses 'voice' not 'voice_call' — message templates describe content rendering, not interaction channels
+- [03-01]: package_services_modify uses 'for all using(...)' — covers insert/update/delete and acts as with check for inserts
+- [03-01]: TEMPLATE_VARIABLES defined as const tuple for type-safe iteration in template editor UI
 
 ### Pending Todos
 
@@ -91,5 +95,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 02-03-PLAN.md (setup wizard + signup success page). Phase 2 complete.
+Stopped at: Completed 03-01-PLAN.md (message templates migration + types). Phase 3 in progress.
 Resume file: None
