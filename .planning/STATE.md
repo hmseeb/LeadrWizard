@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 ## Current Position
 
 Phase: 3 of 8 (Admin CRUD: Content)
-Plan: 3 of 4 in current phase
-Status: Executing Phase 3
-Last activity: 2026-03-14 — Completed plan 03-03 (package CRUD)
+Plan: 4 of 4 in current phase
+Status: Phase 3 Complete
+Last activity: 2026-03-14 — Completed plan 03-04 (message template CRUD)
 
-Progress: [█████████░] 55%
+Progress: [██████████] 60%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: 4 min
-- Total execution time: 43 min
+- Total execution time: 47 min
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [█████████░] 55%
 |-------|-------|-------|----------|
 | 01-security-foundation | 5 | 25 min | 5 min |
 | 02-self-service-signup | 3 | 8 min | 3 min |
-| 03-admin-crud-content | 3 | 10 min | 3 min |
+| 03-admin-crud-content | 4 | 14 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-02 (3 min), 02-03 (4 min), 03-01 (2 min), 03-02 (5 min), 03-03 (3 min)
+- Last 5 plans: 02-03 (4 min), 03-01 (2 min), 03-02 (5 min), 03-03 (3 min), 03-04 (4 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -91,6 +91,10 @@ Recent decisions affecting current work:
 - [03-03]: Delete-then-insert pattern for service assignments on update, simpler than diff-based upsert
 - [03-03]: Price stored as integer cents, displayed as dollars with $ prefix, converted via hidden input onChange handler
 - [03-03]: Service assignment uses checkbox list not multi-select dropdown for better scannability
+- [03-04]: Email templates require subject line, validated server-side in both create and update actions
+- [03-04]: Hard delete for message templates (unlike soft-delete for services) since no FK references depend on them
+- [03-04]: Templates list page repurposed from niche_templates to message_templates per CRUD-03 requirement
+- [03-04]: Sidebar icon changed from Layout to MessageSquare to reflect message templates instead of website templates
 
 ### Pending Todos
 
@@ -105,5 +109,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 03-03-PLAN.md (package CRUD). Phase 3 in progress.
+Stopped at: Completed 03-04-PLAN.md (message template CRUD). Phase 3 complete.
 Resume file: None
