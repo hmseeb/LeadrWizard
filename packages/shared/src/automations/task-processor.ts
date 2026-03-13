@@ -4,6 +4,88 @@ import { checkA2PStatus } from "./a2p-manager";
 import { checkGMBAccessStatus } from "./gmb-manager";
 import { sendSMS } from "../comms/twilio-sms";
 import { resolveTemplate, type TemplateParams } from "../comms/message-templates";
+import { createEscalation } from "./escalation-notifier";
+
+/**
+ * Move a failed task to the dead letter queue after 5+ failures.
+ * Creates an escalation automatically so ops gets notified.
+ */
+async function moveToDLQ(
+  supabase: SupabaseClient,
+  task: ServiceTask,
+  error: string
+): Promise<void> {
+  // Resolve org_id and client_id through client_services -> clients
+  const { data: clientService } = await supabase
+    .from("client_services")
+    .select("client_id")
+    .eq("id", task.client_service_id)
+    .single();
+
+  const clientId = (clientService as Record<string, string> | null)?.client_id || null;
+
+  let orgId: string | null = null;
+  if (clientId) {
+    const { data: client } = await supabase
+      .from("clients")
+      .select("org_id")
+      .eq("id", clientId)
+      .single();
+    orgId = (client as Record<string, string> | null)?.org_id || null;
+  }
+
+  if (!orgId) {
+    console.error(`Cannot move task ${task.id} to DLQ: unable to resolve org_id`);
+    return;
+  }
+
+  // Insert into dead_letter_queue
+  await supabase.from("dead_letter_queue").insert({
+    original_table: "service_tasks",
+    original_id: task.id,
+    task_type: task.task_type,
+    org_id: orgId,
+    client_id: clientId,
+    last_error: error,
+    attempt_count: task.attempt_count,
+    payload: task.last_result || {},
+  });
+
+  // Mark original task as failed with DLQ flag
+  await supabase
+    .from("service_tasks")
+    .update({
+      status: "failed" as ServiceTaskStatus,
+      last_result: {
+        ...(task.last_result || {}),
+        moved_to_dlq: true,
+        dlq_reason: error,
+      },
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", task.id);
+
+  // Create escalation for ops visibility
+  if (clientId) {
+    try {
+      await createEscalation(supabase, {
+        clientId,
+        reason: `Service task "${task.task_type}" failed ${task.attempt_count} times and was moved to the dead letter queue. Last error: ${error}`,
+        context: {
+          task_id: task.id,
+          task_type: task.task_type,
+          attempt_count: task.attempt_count,
+          last_error: error,
+          moved_to_dlq: true,
+        },
+        channel: "system",
+      });
+    } catch {
+      // Escalation creation failure should not block DLQ insertion
+      console.error(`Failed to create escalation for DLQ task ${task.id}`);
+    }
+  }
+}
 
 /**
  * Service task processor — polls async tasks that are waiting on external systems.
@@ -61,33 +143,35 @@ export async function processServiceTasks(
         }
 
         case "ghl_sub_account_provision": {
-          // Retry failed GHL provisioning
-          if (task.status === "in_progress" && task.attempt_count < 3) {
-            // The task was created but API call failed — will be retried
-            // by the payment handler on next attempt
+          if (task.status === "in_progress" && task.attempt_count < 5) {
+            const backoffMinutes = 5 * Math.pow(3, task.attempt_count);
             await supabase
               .from("service_tasks")
               .update({
-                next_check_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+                next_check_at: new Date(Date.now() + backoffMinutes * 60 * 1000).toISOString(),
                 attempt_count: task.attempt_count + 1,
                 updated_at: new Date().toISOString(),
               })
               .eq("id", task.id);
+          } else if (task.status === "in_progress" && task.attempt_count >= 5) {
+            await moveToDLQ(supabase, task, "GHL sub-account provisioning failed after 5 attempts");
           }
           break;
         }
 
         case "ghl_snapshot_deploy": {
-          // Retry failed snapshot deployments
-          if (task.status === "in_progress" && task.attempt_count < 3) {
+          if (task.status === "in_progress" && task.attempt_count < 5) {
+            const backoffMinutes = 5 * Math.pow(3, task.attempt_count);
             await supabase
               .from("service_tasks")
               .update({
-                next_check_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+                next_check_at: new Date(Date.now() + backoffMinutes * 60 * 1000).toISOString(),
                 attempt_count: task.attempt_count + 1,
                 updated_at: new Date().toISOString(),
               })
               .eq("id", task.id);
+          } else if (task.status === "in_progress" && task.attempt_count >= 5) {
+            await moveToDLQ(supabase, task, "GHL snapshot deployment failed after 5 attempts");
           }
           break;
         }
@@ -116,10 +200,37 @@ export async function processServiceTasks(
       }
     } catch (err) {
       errors++;
+      const errorMessage = err instanceof Error ? err.message : String(err);
       console.error(
         `Failed to process task ${task.id} (${task.task_type}):`,
-        err instanceof Error ? err.message : err
+        errorMessage
       );
+
+      // Increment attempt count
+      const newAttemptCount = task.attempt_count + 1;
+
+      if (newAttemptCount >= 5) {
+        // Move to dead letter queue after 5 failures
+        await moveToDLQ(supabase, { ...task, attempt_count: newAttemptCount }, errorMessage);
+      } else {
+        // Schedule retry with exponential backoff: 5min, 15min, 45min, 135min
+        const backoffMinutes = 5 * Math.pow(3, newAttemptCount - 1);
+        await supabase
+          .from("service_tasks")
+          .update({
+            attempt_count: newAttemptCount,
+            next_check_at: new Date(
+              Date.now() + backoffMinutes * 60 * 1000
+            ).toISOString(),
+            last_result: {
+              ...(task.last_result || {}),
+              last_error: errorMessage,
+              last_error_at: new Date().toISOString(),
+            },
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", task.id);
+      }
     }
   }
 
