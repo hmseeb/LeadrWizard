@@ -1,4 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { SetupWizard } from "./setup-wizard";
+import { getUserOrg } from "@leadrwizard/shared/tenant";
 
 interface AnalyticsSnapshot {
   snapshot_date: string;
@@ -17,6 +19,58 @@ interface AnalyticsSnapshot {
 
 export default async function DashboardPage() {
   const supabase = await createSupabaseServerClient();
+
+  // Detect org and empty state for setup wizard
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let showWizard = false;
+  let orgName = "";
+  let hasServices = false;
+  let hasPackages = false;
+  let hasIntegrations = false;
+
+  if (user) {
+    const orgData = await getUserOrg(supabase, user.id);
+    if (orgData) {
+      orgName = orgData.org.name;
+
+      const [
+        { count: svcCount },
+        { count: pkgCount },
+        { data: orgRecord },
+      ] = await Promise.all([
+        supabase
+          .from("service_definitions")
+          .select("*", { count: "exact", head: true })
+          .eq("org_id", orgData.org.id)
+          .eq("is_active", true),
+        supabase
+          .from("service_packages")
+          .select("*", { count: "exact", head: true })
+          .eq("org_id", orgData.org.id)
+          .eq("is_active", true),
+        supabase
+          .from("organizations")
+          .select("onboarding_completed, settings")
+          .eq("id", orgData.org.id)
+          .single(),
+      ]);
+
+      hasServices = (svcCount ?? 0) > 0;
+      hasPackages = (pkgCount ?? 0) > 0;
+
+      // Check if integrations are configured (GHL or Twilio keys present in settings)
+      const settings = (orgRecord?.settings || {}) as Record<string, unknown>;
+      hasIntegrations = !!(settings.twilio_account_sid || settings.ghl_api_key);
+
+      // Show wizard if onboarding not marked complete AND missing any content
+      showWizard =
+        !orgRecord?.onboarding_completed &&
+        (!hasServices || !hasPackages);
+    }
+  }
 
   // Live counts
   const [
@@ -119,6 +173,17 @@ export default async function DashboardPage() {
     <div>
       <h1 className="text-2xl font-bold">Dashboard</h1>
       <p className="mt-1 text-gray-500">Overview of your onboarding operations</p>
+
+      {showWizard && (
+        <div className="mt-6">
+          <SetupWizard
+            hasServices={hasServices}
+            hasPackages={hasPackages}
+            hasIntegrations={hasIntegrations}
+            orgName={orgName}
+          />
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
