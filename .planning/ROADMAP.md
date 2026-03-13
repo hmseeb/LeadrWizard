@@ -67,7 +67,13 @@ Plans:
   1. Admin can create a service definition with required_data_fields and setup_steps, edit it, and soft-delete it — soft-deleted services no longer appear in package assignment but their FKs are preserved
   2. Admin can create a package, assign services to it, set pricing metadata, edit it, and delete it
   3. Admin can create a message template for a specific channel (SMS, email, voice), edit it, preview the rendered output with variable substitution, and delete it
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Database migration: message_templates table + package_services write RLS fix (CRUD-02, CRUD-03)
+- [ ] 03-02-PLAN.md — Services CRUD: server actions + form with dynamic field builders + page routes (CRUD-01)
+- [ ] 03-03-PLAN.md — Packages CRUD: server actions + form with service assignment + page routes (CRUD-02)
+- [ ] 03-04-PLAN.md — Message Templates CRUD: server actions + form with live preview + page routes (CRUD-03)
 
 ### Phase 4: Org Settings + Per-Org Isolation
 **Goal**: Each org operates with fully isolated credentials and its own dedicated Twilio phone number, configured through a self-service settings UI
@@ -132,7 +138,7 @@ Note: Phase 5 depends on Phase 3 (service definitions drive widget steps). Phase
 |-------|----------------|--------|-----------|
 | 1. Security Foundation | 5/5 | Complete    | 2026-03-13 |
 | 2. Self-Service Signup | 3/3 | Complete | 2026-03-14 |
-| 3. Admin CRUD: Content | 0/TBD | Not started | - |
+| 3. Admin CRUD: Content | 0/4 | Not started | - |
 | 4. Org Settings + Per-Org Isolation | 0/TBD | Not started | - |
 | 5. Widget Core Flow | 0/TBD | Not started | - |
 | 6. Widget Voice + Security | 0/TBD | Not started | - |
