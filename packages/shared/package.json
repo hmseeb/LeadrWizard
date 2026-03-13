@@ -21,7 +21,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.0"
+    "@supabase/supabase-js": "^2.49.0",
+    "stripe": "20.4.1"
   },
   "devDependencies": {
     "@leadrwizard/tsconfig": "workspace:*",
