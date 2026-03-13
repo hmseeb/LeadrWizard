@@ -14,12 +14,12 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Security Foundation** - Patch three active exploits and harden all public entry points before anything else ships (completed 2026-03-13)
 - [x] **Phase 2: Self-Service Signup** - Agencies complete Stripe checkout and get a provisioned org with admin access automatically (completed 2026-03-14)
-- [ ] **Phase 3: Admin CRUD: Content** - Admins can create and manage service definitions, packages, and message templates
-- [ ] **Phase 4: Org Settings + Per-Org Isolation** - Each org has its own credentials, phone number, and isolated operational config
-- [ ] **Phase 5: Widget Core Flow** - Embeddable widget loads a session, collects responses step-by-step, and reaches completion state
-- [ ] **Phase 6: Widget Voice + Security** - Voice/form hybrid works in the same session and widget validates its embedding origin
-- [ ] **Phase 7: Rate Limiting + Structured Logging** - Production-grade rate limiting replaces the broken in-memory store; pino logs replace console.error everywhere
-- [ ] **Phase 8: Realtime Dashboard** - Admin dashboard updates in realtime without page refresh via Supabase Postgres Changes
+- [x] **Phase 3: Admin CRUD: Content** - Admins can create and manage service definitions, packages, and message templates (completed 2026-03-14)
+- [x] **Phase 4: Org Settings + Per-Org Isolation** - Each org has its own credentials, phone number, and isolated operational config (completed 2026-03-14)
+- [x] **Phase 5: Widget Core Flow** - Embeddable widget loads a session, collects responses step-by-step, and reaches completion state (completed 2026-03-14)
+- [x] **Phase 6: Widget Voice + Security** - Voice/form hybrid works in the same session and widget validates its embedding origin (completed 2026-03-14)
+- [x] **Phase 7: Rate Limiting + Structured Logging** - Production-grade rate limiting replaces the broken in-memory store; pino logs replace console.error everywhere (completed 2026-03-14)
+- [x] **Phase 8: Realtime Dashboard** - Admin dashboard updates in realtime without page refresh via Supabase Postgres Changes (completed 2026-03-14)
 
 ## Phase Details
 
@@ -160,11 +160,11 @@ Note: Phase 5 depends on Phase 3 (service definitions drive widget steps). Phase
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Security Foundation | 5/5 | Complete    | 2026-03-13 |
+| 1. Security Foundation | 5/5 | Complete | 2026-03-13 |
 | 2. Self-Service Signup | 3/3 | Complete | 2026-03-14 |
-| 3. Admin CRUD: Content | 0/4 | Not started | - |
-| 4. Org Settings + Per-Org Isolation | 0/4 | Not started | - |
-| 5. Widget Core Flow | 0/3 | Not started | - |
-| 6. Widget Voice + Security | 0/2 | Not started | - |
-| 7. Rate Limiting + Structured Logging | 1/3 | In Progress | - |
-| 8. Realtime Dashboard | 0/2 | Not started | - |
+| 3. Admin CRUD: Content | 4/4 | Complete | 2026-03-14 |
+| 4. Org Settings + Per-Org Isolation | 4/4 | Complete | 2026-03-14 |
+| 5. Widget Core Flow | 3/3 | Complete | 2026-03-14 |
+| 6. Widget Voice + Security | 2/2 | Complete | 2026-03-14 |
+| 7. Rate Limiting + Structured Logging | 3/3 | Complete | 2026-03-14 |
+| 8. Realtime Dashboard | 2/2 | Complete | 2026-03-14 |
