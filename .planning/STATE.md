@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 ## Current Position
 
 Phase: 7 of 8 (Rate Limiting + Structured Logging)
-Plan: 1 of 3 in current phase
+Plan: 3 of 3 in current phase
 Status: In Progress
-Last activity: 2026-03-14 — Completed plan 07-01 (infra deps + logger + rate limiter + Sentry)
+Last activity: 2026-03-14 — Completed plan 07-03 (middleware rate limiting + correlation ID)
 
-Progress: [███████████████████████] 92%
+Progress: [████████████████████████] 96%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 22
-- Average duration: 4 min
-- Total execution time: 78 min
+- Total plans completed: 23
+- Average duration: 3 min
+- Total execution time: 80 min
 
 **By Phase:**
 
@@ -33,10 +33,10 @@ Progress: [███████████████████████
 | 04-org-settings-isolation | 4 | 15 min | 4 min |
 | 05-widget-core-flow | 3 | 9 min | 3 min |
 | 06-widget-voice-security | 2 | 3 min | 2 min |
-| 07-rate-limiting-logging | 1 | 4 min | 4 min |
+| 07-rate-limiting-logging | 2 | 6 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 05-02 (3 min), 05-03 (3 min), 06-02 (1 min), 06-01 (2 min), 07-01 (4 min)
+- Last 5 plans: 05-03 (3 min), 06-02 (1 min), 06-01 (2 min), 07-01 (4 min), 07-03 (2 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -136,6 +136,10 @@ Recent decisions affecting current work:
 - [07-01]: pino-pretty installed as regular dependency (not dev) since pino resolves transport targets at runtime
 - [07-01]: Sentry v10 with tunnelRoute /monitoring to bypass ad blockers on client-side error reporting
 - [07-01]: serverExternalPackages at top level per Next.js 15 convention (not under experimental)
+- [07-03]: Used x-forwarded-for and x-real-ip headers for IP extraction (request.ip not available in NextRequest type)
+- [07-03]: Rate limiting runs before Supabase auth to short-circuit early on abuse
+- [07-03]: Fail-open on Upstash errors so rate limiter outage never blocks legitimate requests
+- [07-03]: Correlation ID set on both request (for downstream handlers) and response (for client debugging)
 
 ### Pending Todos
 
@@ -150,5 +154,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 07-01-PLAN.md (infra deps + pino logger + Upstash rate limiter + Sentry config)
+Stopped at: Completed 07-03-PLAN.md (middleware rate limiting + correlation ID injection)
 Resume file: None

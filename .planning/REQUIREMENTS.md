@@ -14,7 +14,7 @@ Requirements for production launch. Each maps to roadmap phases.
 - [x] **SEC-03**: Anonymous RLS policies (`sessions_anon_insert`, `sessions_anon_update`, `responses_anon_insert`) removed and replaced with org_id-scoped server-side validation
 - [x] **SEC-04**: Payment webhook `body.org_id` fallback removed. Org resolution requires valid API key or webhook signature only
 - [x] **SEC-05**: Widget response submission routes through authenticated API endpoint (`POST /api/widget/response`) instead of direct anonymous Supabase inserts
-- [ ] **SEC-06**: Rate limiting applied to all public webhook endpoints and widget API using Upstash Redis (replacing broken in-memory rate limiter)
+- [x] **SEC-06**: Rate limiting applied to all public webhook endpoints and widget API using Upstash Redis (replacing broken in-memory rate limiter)
 
 ### Self-Service Signup
 
@@ -79,7 +79,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-03 | Phase 1 | Complete |
 | SEC-04 | Phase 1 | Complete |
 | SEC-05 | Phase 1 | Complete |
-| SEC-06 | Phase 7 | Pending |
+| SEC-06 | Phase 7 | Complete |
 | SIGN-01 | Phase 2 | Complete |
 | SIGN-02 | Phase 2 | Complete |
 | SIGN-03 | Phase 2 | Complete |
