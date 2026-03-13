@@ -2,18 +2,13 @@ import React from "react";
 import { useWizardSession } from "../hooks/useWizardSession";
 import { ProgressBar } from "./ProgressBar";
 import { StepRenderer } from "./StepRenderer";
-import { VoiceBotToggle } from "./VoiceBotToggle";
-import { VoiceBot } from "./VoiceBot";
 
 interface WizardWidgetProps {
   sessionId: string;
   apiBaseUrl?: string;
 }
 
-export function WizardWidget({
-  sessionId,
-  apiBaseUrl,
-}: WizardWidgetProps) {
+export function WizardWidget({ sessionId, apiBaseUrl }: WizardWidgetProps) {
   const {
     loading,
     error,
@@ -22,11 +17,9 @@ export function WizardWidget({
     services,
     currentQuestion,
     completionPct,
-    mode,
+    submitResponse,
     submitting,
     stepError,
-    submitResponse,
-    setMode,
     clearStepError,
   } = useWizardSession(sessionId, apiBaseUrl);
 
@@ -64,7 +57,8 @@ export function WizardWidget({
         </h2>
         {isReturning && (
           <p className="lw-subtitle">
-            You have {services.reduce((sum, s) => sum + s.missingFields.length, 0)}{" "}
+            You have{" "}
+            {services.reduce((sum, s) => sum + s.missingFields.length, 0)}{" "}
             items remaining.
           </p>
         )}
@@ -73,50 +67,27 @@ export function WizardWidget({
       {/* Progress */}
       <ProgressBar completionPct={completionPct} services={services} />
 
-      {/* Mode Toggle */}
-      <VoiceBotToggle mode={mode} onToggle={setMode} />
-
-      {/* Content Area */}
-      {mode === "voice" ? (
-        <VoiceBot
-          sessionId={sessionId}
-          isActive={true}
-          onAnswer={(fieldKey, value) => {
-            const serviceWithMissing = services.find((s) =>
-              s.missingFields.some((f) => f.key === fieldKey)
-            );
-            submitResponse(
-              fieldKey,
-              value,
-              serviceWithMissing?.clientServiceId || null,
-              "voice"
-            );
-          }}
-        />
-      ) : currentQuestion ? (
+      {/* Step Content — visual mode only (voice toggle hidden until Phase 6) */}
+      {currentQuestion && (
         <StepRenderer
           question={currentQuestion}
+          submitting={submitting}
+          stepError={stepError}
           onSubmit={(value) => {
             if (currentQuestion.field_key) {
-              const serviceWithMissing = services.find(
+              const serviceMatch = services.find(
                 (s) => s.serviceId === currentQuestion.service_id
               );
               submitResponse(
                 currentQuestion.field_key,
                 value,
-                serviceWithMissing?.clientServiceId || null,
+                serviceMatch?.clientServiceId || null,
                 "click"
               );
             }
           }}
+          onRetry={clearStepError}
         />
-      ) : null}
-
-      {/* Completion Gate */}
-      {completionPct === 100 && (
-        <div className="lw-complete-banner">
-          All information collected! Your services are being set up.
-        </div>
       )}
     </div>
   );
