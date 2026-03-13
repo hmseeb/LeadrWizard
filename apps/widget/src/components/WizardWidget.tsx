@@ -8,15 +8,11 @@ import { VoiceBot } from "./VoiceBot";
 interface WizardWidgetProps {
   sessionId: string;
   apiBaseUrl?: string;
-  supabaseUrl?: string;
-  supabaseKey?: string;
 }
 
 export function WizardWidget({
   sessionId,
   apiBaseUrl,
-  supabaseUrl,
-  supabaseKey,
 }: WizardWidgetProps) {
   const {
     loading,
@@ -27,9 +23,12 @@ export function WizardWidget({
     currentQuestion,
     completionPct,
     mode,
+    submitting,
+    stepError,
     submitResponse,
     setMode,
-  } = useWizardSession(sessionId, apiBaseUrl, supabaseUrl, supabaseKey);
+    clearStepError,
+  } = useWizardSession(sessionId, apiBaseUrl);
 
   if (loading) {
     return (
@@ -89,7 +88,7 @@ export function WizardWidget({
             submitResponse(
               fieldKey,
               value,
-              serviceWithMissing?.clientService.id || null,
+              serviceWithMissing?.clientServiceId || null,
               "voice"
             );
           }}
@@ -100,12 +99,12 @@ export function WizardWidget({
           onSubmit={(value) => {
             if (currentQuestion.field_key) {
               const serviceWithMissing = services.find(
-                (s) => s.definition.id === currentQuestion.service_id
+                (s) => s.serviceId === currentQuestion.service_id
               );
               submitResponse(
                 currentQuestion.field_key,
                 value,
-                serviceWithMissing?.clientService.id || null,
+                serviceWithMissing?.clientServiceId || null,
                 "click"
               );
             }

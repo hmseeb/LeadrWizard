@@ -21,12 +21,12 @@ export function ProgressBar({ completionPct, services }: ProgressBarProps) {
       </div>
       <div className="lw-progress-services">
         {services.map((s) => (
-          <div key={s.definition.id} className="lw-progress-service">
+          <div key={s.serviceId} className="lw-progress-service">
             <span
               className={`lw-progress-dot ${s.pct === 100 ? "lw-done" : ""}`}
             />
             <span className="lw-progress-service-name">
-              {s.definition.name}
+              {s.serviceName}
             </span>
             {s.missingFields.length > 0 && (
               <span className="lw-progress-remaining">
