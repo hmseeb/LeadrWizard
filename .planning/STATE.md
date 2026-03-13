@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 ## Current Position
 
 Phase: 1 of 8 (Security Foundation)
-Plan: 3 of 5 in current phase
+Plan: 4 of 5 in current phase
 Status: In progress
-Last activity: 2026-03-14 — Completed plan 01-03 (webhook hardening: Stripe signature verification + idempotency + body.org_id removal)
+Last activity: 2026-03-14 — Completed plan 01-04 (atomic payment handler via supabase.rpc('provision_client'))
 
-Progress: [███░░░░░░░] 15%
+Progress: [████░░░░░░] 20%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 5 min
-- Total execution time: 14 min
+- Total plans completed: 4
+- Average duration: 4 min
+- Total execution time: 17 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-security-foundation | 3 | 14 min | 5 min |
+| 01-security-foundation | 4 | 17 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2 min), 01-02 (9 min), 01-03 (3 min)
+- Last 5 plans: 01-01 (2 min), 01-02 (9 min), 01-03 (3 min), 01-04 (3 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -58,6 +58,8 @@ Recent decisions affecting current work:
 - [01-03]: Upsert processed_webhook_events BEFORE processing to prevent race conditions under concurrent requests
 - [01-03]: Replace body.org_id fallback with x-internal-secret + x-org-id headers — body never trusted for org resolution
 - [01-03]: STRIPE_WEBHOOK_SECRET missing throws at verification time, not silently passes
+- [01-04]: Fetch-after-rpc pattern — plpgsql returns IDs, TypeScript fetches full rows using existing types
+- [01-04]: GHL provisioning and outreach queue remain outside rpc() — external API calls cannot participate in DB transactions
 
 ### Pending Todos
 
@@ -73,5 +75,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 01-03-PLAN.md (webhook hardening: Stripe signature verification + idempotency + body.org_id removal)
+Stopped at: Completed 01-04-PLAN.md (atomic payment handler via supabase.rpc('provision_client'))
 Resume file: None
