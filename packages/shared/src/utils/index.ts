@@ -50,9 +50,15 @@ export function truncate(text: string, maxLength: number): string {
 }
 
 export {
-  checkRateLimit,
+  getRateLimiter,
+  getTierForPath,
   getRateLimitHeaders,
   RATE_LIMITS,
-  type RateLimitConfig,
-  type RateLimitResult,
+  type RateLimitTier,
 } from "./rate-limiter";
+
+export {
+  logger,
+  createRouteLogger,
+  type Logger,
+} from "./logger";

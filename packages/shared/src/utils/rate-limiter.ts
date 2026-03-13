@@ -1,101 +1,58 @@
-/**
- * In-memory rate limiter for API endpoints.
- * Uses a sliding window approach.
- *
- * For production with multiple instances, use Redis-based rate limiting.
- * This works well for single-instance / serverless with warm containers.
- */
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
 
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
-
-const store = new Map<string, RateLimitEntry>();
-
-// Clean up expired entries periodically
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of store) {
-    if (entry.resetAt < now) {
-      store.delete(key);
-    }
+// Lazy init to avoid boot failures when env vars missing (build time, tests)
+let redis: Redis | null = null;
+function getRedis(): Redis {
+  if (!redis) {
+    redis = Redis.fromEnv();
   }
-}, 60 * 1000); // Every minute
-
-export interface RateLimitConfig {
-  /** Max requests per window */
-  maxRequests: number;
-  /** Window size in seconds */
-  windowSeconds: number;
+  return redis;
 }
 
-export interface RateLimitResult {
-  allowed: boolean;
-  remaining: number;
-  resetAt: number;
-}
-
-/**
- * Check if a request is within rate limits.
- */
-export function checkRateLimit(
-  key: string,
-  config: RateLimitConfig
-): RateLimitResult {
-  const now = Date.now();
-  const entry = store.get(key);
-
-  if (!entry || entry.resetAt < now) {
-    // New window
-    store.set(key, {
-      count: 1,
-      resetAt: now + config.windowSeconds * 1000,
-    });
-    return {
-      allowed: true,
-      remaining: config.maxRequests - 1,
-      resetAt: now + config.windowSeconds * 1000,
-    };
-  }
-
-  if (entry.count >= config.maxRequests) {
-    return {
-      allowed: false,
-      remaining: 0,
-      resetAt: entry.resetAt,
-    };
-  }
-
-  entry.count++;
-  return {
-    allowed: true,
-    remaining: config.maxRequests - entry.count,
-    resetAt: entry.resetAt,
-  };
-}
-
-/**
- * Pre-configured rate limits for different endpoint types.
- */
 export const RATE_LIMITS = {
-  /** Webhook endpoints: 100 req/min */
-  webhook: { maxRequests: 100, windowSeconds: 60 },
-  /** API endpoints: 60 req/min */
-  api: { maxRequests: 60, windowSeconds: 60 },
-  /** Auth endpoints: 10 req/min */
-  auth: { maxRequests: 10, windowSeconds: 60 },
-  /** Cron endpoints: 5 req/min */
-  cron: { maxRequests: 5, windowSeconds: 60 },
+  webhook: { requests: 100, window: "60 s" as const },
+  api: { requests: 60, window: "60 s" as const },
+  widget: { requests: 60, window: "60 s" as const },
+  auth: { requests: 10, window: "60 s" as const },
+  signup: { requests: 10, window: "60 s" as const },
+  cron: { requests: 5, window: "60 s" as const },
 } as const;
 
-/**
- * Helper to apply rate limiting to a Next.js API route.
- * Returns headers object if allowed, throws if rate limited.
- */
-export function getRateLimitHeaders(result: RateLimitResult): Record<string, string> {
+export type RateLimitTier = keyof typeof RATE_LIMITS;
+
+const limiters = new Map<string, Ratelimit>();
+
+export function getRateLimiter(tier: RateLimitTier): Ratelimit {
+  if (!limiters.has(tier)) {
+    const config = RATE_LIMITS[tier];
+    limiters.set(
+      tier,
+      new Ratelimit({
+        redis: getRedis(),
+        limiter: Ratelimit.slidingWindow(config.requests, config.window),
+        prefix: `leadrwizard:ratelimit:${tier}`,
+        analytics: true,
+      })
+    );
+  }
+  return limiters.get(tier)!;
+}
+
+export function getTierForPath(pathname: string): RateLimitTier {
+  if (pathname.startsWith("/api/webhooks/")) return "webhook";
+  if (pathname.startsWith("/api/widget/")) return "widget";
+  if (pathname.startsWith("/api/signup/")) return "signup";
+  if (pathname.startsWith("/api/cron/")) return "cron";
+  return "api";
+}
+
+export function getRateLimitHeaders(result: {
+  remaining: number;
+  reset: number;
+}): Record<string, string> {
   return {
     "X-RateLimit-Remaining": String(result.remaining),
-    "X-RateLimit-Reset": String(Math.ceil(result.resetAt / 1000)),
+    "X-RateLimit-Reset": String(Math.ceil(result.reset / 1000)),
   };
 }
