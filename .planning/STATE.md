@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 ## Current Position
 
 Phase: 1 of 8 (Security Foundation)
-Plan: 1 of 5 in current phase
+Plan: 2 of 5 in current phase
 Status: In progress
-Last activity: 2026-03-13 — Completed plan 01-01 (DB migrations: webhook idempotency table + RLS hardening + provision_client)
+Last activity: 2026-03-14 — Completed plan 01-02 (Stripe SDK install + stripe-adapter.ts refactor with constructEvent)
 
-Progress: [█░░░░░░░░░] 5%
+Progress: [██░░░░░░░░] 10%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 2 min
-- Total execution time: 2 min
+- Total plans completed: 2
+- Average duration: 6 min
+- Total execution time: 11 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-security-foundation | 1 | 2 min | 2 min |
+| 01-security-foundation | 2 | 11 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2 min)
+- Last 5 plans: 01-01 (2 min), 01-02 (9 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -50,6 +50,10 @@ Recent decisions affecting current work:
 - [01-01]: provision_client placed in 00005 alongside RLS hardening — both security foundational, single migration boundary
 - [01-01]: No RLS on processed_webhook_events — service role only, RLS overhead with zero security benefit
 - [01-01]: interactions_valid_session_insert uses session_id EXISTS check for consistency with response insert pattern
+- [01-02]: Pinned stripe to exact 20.4.1 (no ^ caret) — security-critical dependency, no surprise upgrades
+- [01-02]: Used Stripe API version 2026-02-25.clover (latest stable, from SDK's ApiVersion constant)
+- [01-02]: getStripeClient() creates per-call instance — avoids boot failures when STRIPE_SECRET_KEY missing at import time
+- [01-02]: Stripe v20 moved current_period_start/end to SubscriptionItem; invoice.subscription to parent.subscription_details
 
 ### Pending Todos
 
@@ -64,6 +68,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13
-Stopped at: Completed 01-01-PLAN.md (DB migrations: idempotency table + RLS hardening + provision_client function)
+Last session: 2026-03-14
+Stopped at: Completed 01-02-PLAN.md (Stripe SDK install + stripe-adapter.ts SDK refactor with constructEvent)
 Resume file: None
