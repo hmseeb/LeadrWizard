@@ -1,6 +1,0 @@
-{
-  "buildCommand": "pnpm --filter @leadrwizard/admin build",
-  "installCommand": "pnpm install",
-  "outputDirectory": "apps/admin/.next",
-  "framework": "nextjs"
-}
