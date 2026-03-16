@@ -2,12 +2,17 @@ import { createServerClient as createSSRClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
+/**
+ * SSR client with cookie-based auth session.
+ * Uses service role key so data queries bypass RLS.
+ * Auth still works via cookies (getUser reads the JWT from cookie).
+ */
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
 
   return createSSRClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {
       cookies: {
         getAll() {
@@ -27,7 +32,7 @@ export async function createSupabaseServerClient() {
   );
 }
 
-/** Service role client for server-side operations that bypass RLS */
+/** Service role client without cookies (for non-auth server operations) */
 export function createSupabaseServiceClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
