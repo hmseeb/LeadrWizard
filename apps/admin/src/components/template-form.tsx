@@ -53,19 +53,19 @@ export function TemplateForm({ mode, initialData, action }: TemplateFormProps) {
         {/* Left: Form */}
         <div className="space-y-6">
           {error && (
-            <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700">
+            <div className="rounded-lg border border-rose-500/20 bg-rose-600/10 p-4 text-sm text-rose-400">
               {error}
             </div>
           )}
 
           {/* Basic Info */}
-          <div className="rounded-lg border bg-white p-6">
-            <h2 className="text-lg font-semibold">Template Details</h2>
+          <div className="rounded-xl border border-zinc-800 bg-surface p-6">
+            <h2 className="text-lg font-semibold text-zinc-50">Template Details</h2>
             <div className="mt-4 space-y-4">
               <div>
                 <label
                   htmlFor="name"
-                  className="block text-sm font-medium text-gray-700"
+                  className="block text-sm font-medium text-zinc-300 mb-1.5"
                 >
                   Template Name
                 </label>
@@ -78,24 +78,24 @@ export function TemplateForm({ mode, initialData, action }: TemplateFormProps) {
                   maxLength={100}
                   defaultValue={initialData?.name || ""}
                   placeholder="e.g. Welcome SMS"
-                  className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500/30 transition-colors"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
                   Channel
                 </label>
-                <div className="mt-2 flex gap-2">
+                <div className="flex gap-2">
                   {(["sms", "email", "voice"] as const).map((ch) => (
                     <button
                       key={ch}
                       type="button"
                       onClick={() => setChannel(ch)}
-                      className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                      className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
                         channel === ch
-                          ? "bg-brand-600 text-white"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          ? "bg-brand-600 text-white shadow-sm"
+                          : "border border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
                       }`}
                     >
                       {ch === "sms" ? "SMS" : ch === "email" ? "Email" : "Voice"}
@@ -109,7 +109,7 @@ export function TemplateForm({ mode, initialData, action }: TemplateFormProps) {
                 <div>
                   <label
                     htmlFor="subject"
-                    className="block text-sm font-medium text-gray-700"
+                    className="block text-sm font-medium text-zinc-300 mb-1.5"
                   >
                     Subject Line
                   </label>
@@ -121,7 +121,7 @@ export function TemplateForm({ mode, initialData, action }: TemplateFormProps) {
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
                     placeholder="e.g. Complete your {{packageName}} setup"
-                    className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500/30 transition-colors"
                   />
                 </div>
               )}
@@ -132,9 +132,9 @@ export function TemplateForm({ mode, initialData, action }: TemplateFormProps) {
           </div>
 
           {/* Body */}
-          <div className="rounded-lg border bg-white p-6">
-            <h2 className="text-lg font-semibold">Message Body</h2>
-            <p className="mt-1 text-sm text-gray-500">
+          <div className="rounded-xl border border-zinc-800 bg-surface p-6">
+            <h2 className="text-lg font-semibold text-zinc-50">Message Body</h2>
+            <p className="mt-1 text-sm text-zinc-400">
               Use {"{{variableName}}"} to insert dynamic content. Click a variable
               below to insert it at the cursor.
             </p>
@@ -146,7 +146,7 @@ export function TemplateForm({ mode, initialData, action }: TemplateFormProps) {
                   key={v.key}
                   type="button"
                   onClick={() => insertVariable(v.key)}
-                  className="rounded bg-gray-100 px-2 py-1 text-xs font-mono text-gray-600 hover:bg-brand-50 hover:text-brand-700"
+                  className="rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs font-mono text-zinc-400 hover:border-brand-500/40 hover:text-brand-400 transition-colors"
                   title={v.label}
                 >
                   {`{{${v.key}}}`}
@@ -169,11 +169,11 @@ export function TemplateForm({ mode, initialData, action }: TemplateFormProps) {
                     ? "Hi, this is a call about your service setup with {{businessName}}..."
                     : "Dear {{name}},\n\nWe're reaching out about your {{packageName}} setup..."
               }
-              className="mt-3 w-full rounded-md border px-3 py-2 text-sm font-mono"
+              className="mt-3 w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2.5 text-sm font-mono text-zinc-100 placeholder:text-zinc-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500/30 transition-colors"
             />
 
             {channel === "sms" && (
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-zinc-500">
                 {body.length} characters
                 {body.length > 160 && " (will be sent as multiple segments)"}
               </p>
@@ -184,14 +184,14 @@ export function TemplateForm({ mode, initialData, action }: TemplateFormProps) {
           <div className="flex items-center justify-between">
             <Link
               href="/templates"
-              className="text-sm text-gray-500 hover:text-gray-700"
+              className="text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
             >
               Cancel
             </Link>
             <button
               type="submit"
               disabled={isPending}
-              className="rounded-lg bg-brand-600 px-6 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+              className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-500 disabled:opacity-50 transition-all shadow-sm"
             >
               {isPending
                 ? mode === "create"
@@ -207,8 +207,8 @@ export function TemplateForm({ mode, initialData, action }: TemplateFormProps) {
         {/* Right: Preview + Variable Reference */}
         <div className="space-y-6">
           <div>
-            <h2 className="text-lg font-semibold">Preview</h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <h2 className="text-lg font-semibold text-zinc-50">Preview</h2>
+            <p className="mt-1 text-sm text-zinc-400">
               Shows how the message will look with sample data.
             </p>
             <div className="mt-4">
@@ -221,11 +221,11 @@ export function TemplateForm({ mode, initialData, action }: TemplateFormProps) {
           </div>
 
           {/* Variable Reference */}
-          <div className="rounded-lg border bg-white p-6">
-            <h3 className="text-sm font-semibold text-gray-700">
+          <div className="rounded-xl border border-zinc-800 bg-surface p-6">
+            <h3 className="text-sm font-semibold text-zinc-300">
               Available Variables
             </h3>
-            <p className="mt-1 text-xs text-gray-400">
+            <p className="mt-1 text-xs text-zinc-500">
               These are replaced with real values when the message is sent.
             </p>
             <div className="mt-3 space-y-2">
@@ -235,12 +235,12 @@ export function TemplateForm({ mode, initialData, action }: TemplateFormProps) {
                   className="flex items-start justify-between text-sm"
                 >
                   <div>
-                    <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">
+                    <code className="rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-300">
                       {`{{${v.key}}}`}
                     </code>
-                    <span className="ml-2 text-gray-600">{v.label}</span>
+                    <span className="ml-2 text-zinc-400">{v.label}</span>
                   </div>
-                  <span className="text-xs text-gray-400">{v.example}</span>
+                  <span className="text-xs text-zinc-500">{v.example}</span>
                 </div>
               ))}
             </div>

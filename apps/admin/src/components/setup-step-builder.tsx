@@ -72,7 +72,7 @@ export function SetupStepBuilder({ initialSteps = [], name }: SetupStepBuilderPr
         {steps.map((step, i) => (
           <div
             key={i}
-            className="rounded-lg border bg-gray-50 p-4"
+            className="rounded-lg border border-zinc-800 bg-zinc-900/60 p-4"
           >
             <div className="flex items-start gap-2">
               <div className="flex flex-col gap-1 pt-2">
@@ -80,7 +80,7 @@ export function SetupStepBuilder({ initialSteps = [], name }: SetupStepBuilderPr
                   type="button"
                   onClick={() => moveStep(i, i - 1)}
                   disabled={i === 0}
-                  className="text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                  className="text-zinc-500 hover:text-zinc-300 disabled:opacity-30 transition-colors"
                   title="Move up"
                 >
                   <GripVertical className="h-4 w-4" />
@@ -89,7 +89,7 @@ export function SetupStepBuilder({ initialSteps = [], name }: SetupStepBuilderPr
 
               <div className="flex-1 grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600">
+                  <label className="block text-xs font-medium text-zinc-400">
                     Label
                   </label>
                   <input
@@ -97,12 +97,12 @@ export function SetupStepBuilder({ initialSteps = [], name }: SetupStepBuilderPr
                     value={step.label}
                     onChange={(e) => updateStep(i, { label: e.target.value })}
                     placeholder="e.g. Register A2P"
-                    className="mt-1 w-full rounded-md border px-3 py-1.5 text-sm"
+                    className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500/30 transition-colors"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600">
+                  <label className="block text-xs font-medium text-zinc-400">
                     Key
                   </label>
                   <input
@@ -110,12 +110,12 @@ export function SetupStepBuilder({ initialSteps = [], name }: SetupStepBuilderPr
                     value={step.key}
                     onChange={(e) => updateStep(i, { key: e.target.value })}
                     placeholder="register_a2p"
-                    className="mt-1 w-full rounded-md border px-3 py-1.5 text-sm font-mono"
+                    className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2 text-sm font-mono text-zinc-100 placeholder:text-zinc-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500/30 transition-colors"
                     required
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-600">
+                  <label className="block text-xs font-medium text-zinc-400">
                     Description
                   </label>
                   <input
@@ -123,26 +123,26 @@ export function SetupStepBuilder({ initialSteps = [], name }: SetupStepBuilderPr
                     value={step.description}
                     onChange={(e) => updateStep(i, { description: e.target.value })}
                     placeholder="What this step does..."
-                    className="mt-1 w-full rounded-md border px-3 py-1.5 text-sm"
+                    className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500/30 transition-colors"
                     required
                   />
                 </div>
                 <div className="flex items-center gap-4">
-                  <label className="flex items-center gap-2 text-sm">
+                  <label className="flex items-center gap-2 text-sm text-zinc-300">
                     <input
                       type="checkbox"
                       checked={step.automated}
                       onChange={(e) =>
                         updateStep(i, { automated: e.target.checked })
                       }
-                      className="rounded border-gray-300"
+                      className="rounded border-zinc-600 bg-zinc-800 text-brand-500 focus:ring-brand-500/30"
                     />
                     Automated
                   </label>
                 </div>
                 {step.automated && (
                   <div>
-                    <label className="block text-xs font-medium text-gray-600">
+                    <label className="block text-xs font-medium text-zinc-400">
                       Task Type
                     </label>
                     <select
@@ -152,7 +152,7 @@ export function SetupStepBuilder({ initialSteps = [], name }: SetupStepBuilderPr
                           task_type: (e.target.value || undefined) as ServiceTaskType | undefined,
                         })
                       }
-                      className="mt-1 w-full rounded-md border px-3 py-1.5 text-sm"
+                      className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2 text-sm text-zinc-100 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500/30 transition-colors"
                     >
                       <option value="">Select task type...</option>
                       {TASK_TYPES.map((t) => (
@@ -168,7 +168,7 @@ export function SetupStepBuilder({ initialSteps = [], name }: SetupStepBuilderPr
               <button
                 type="button"
                 onClick={() => removeStep(i)}
-                className="mt-6 text-red-400 hover:text-red-600"
+                className="mt-6 text-rose-400 hover:text-rose-300 transition-colors"
                 title="Remove step"
               >
                 <Trash2 className="h-4 w-4" />
@@ -181,7 +181,7 @@ export function SetupStepBuilder({ initialSteps = [], name }: SetupStepBuilderPr
       <button
         type="button"
         onClick={addStep}
-        className="mt-3 flex items-center gap-2 rounded-lg border border-dashed px-4 py-2 text-sm text-gray-500 hover:border-brand-300 hover:text-brand-600"
+        className="mt-3 flex items-center gap-2 rounded-lg border border-dashed border-zinc-700 px-4 py-2 text-sm text-zinc-400 hover:border-brand-500/40 hover:text-brand-400 transition-colors"
       >
         <Plus className="h-4 w-4" />
         Add Setup Step

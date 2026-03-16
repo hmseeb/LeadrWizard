@@ -20,10 +20,10 @@ function interpolate(text: string): string {
   });
 }
 
-const channelStyles: Record<MessageChannel, { label: string; bg: string; maxWidth: string }> = {
-  sms: { label: "SMS Preview", bg: "bg-green-50", maxWidth: "max-w-sm" },
-  email: { label: "Email Preview", bg: "bg-blue-50", maxWidth: "max-w-lg" },
-  voice: { label: "Voice Script Preview", bg: "bg-purple-50", maxWidth: "max-w-md" },
+const channelStyles: Record<MessageChannel, { label: string; accent: string; maxWidth: string }> = {
+  sms: { label: "SMS Preview", accent: "border-emerald-500/30", maxWidth: "max-w-sm" },
+  email: { label: "Email Preview", accent: "border-blue-500/30", maxWidth: "max-w-lg" },
+  voice: { label: "Voice Script Preview", accent: "border-purple-500/30", maxWidth: "max-w-md" },
 };
 
 export function TemplatePreview({ body, subject, channel }: TemplatePreviewProps) {
@@ -33,28 +33,28 @@ export function TemplatePreview({ body, subject, channel }: TemplatePreviewProps
 
   if (!body.trim()) {
     return (
-      <div className="rounded-lg border border-dashed p-6 text-center text-sm text-gray-400">
+      <div className="rounded-lg border border-dashed border-zinc-700 p-6 text-center text-sm text-zinc-500">
         Start typing to see preview...
       </div>
     );
   }
 
   return (
-    <div className={`rounded-lg ${style.bg} p-4`}>
-      <p className="mb-2 text-xs font-medium uppercase text-gray-500">
+    <div className={`rounded-xl border ${style.accent} bg-zinc-900/80 p-4`}>
+      <p className="mb-2 text-xs font-medium uppercase text-zinc-500">
         {style.label}
       </p>
 
       <div className={`${style.maxWidth}`}>
         {channel === "email" && renderedSubject && (
-          <div className="mb-2 rounded bg-white px-3 py-2 text-sm font-medium text-gray-900">
+          <div className="mb-2 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-100">
             Subject: {renderedSubject}
           </div>
         )}
 
         {channel === "sms" ? (
           /* SMS bubble style */
-          <div className="rounded-2xl rounded-tl-sm bg-white px-4 py-3 text-sm text-gray-800 shadow-sm">
+          <div className="rounded-2xl rounded-tl-sm border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm text-zinc-200 shadow-sm">
             {renderedBody.split("\n").map((line, i) => (
               <span key={i}>
                 {i > 0 && <br />}
@@ -64,12 +64,12 @@ export function TemplatePreview({ body, subject, channel }: TemplatePreviewProps
           </div>
         ) : channel === "voice" ? (
           /* Voice script style */
-          <div className="rounded bg-white px-4 py-3 text-sm italic text-gray-700 shadow-sm">
+          <div className="rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm italic text-zinc-300 shadow-sm">
             &ldquo;{renderedBody}&rdquo;
           </div>
         ) : (
           /* Email body style */
-          <div className="rounded bg-white px-4 py-3 text-sm text-gray-700 shadow-sm">
+          <div className="rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm text-zinc-300 shadow-sm">
             {renderedBody.split("\n").map((line, i) => (
               <p key={i} className={line.trim() === "" ? "h-3" : ""}>
                 {line}
@@ -79,7 +79,7 @@ export function TemplatePreview({ body, subject, channel }: TemplatePreviewProps
         )}
       </div>
 
-      <div className="mt-3 text-xs text-gray-400">
+      <div className="mt-3 text-xs text-zinc-500">
         Variables shown with sample data
       </div>
     </div>

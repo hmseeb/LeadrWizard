@@ -39,92 +39,92 @@ export function RealtimeSessions({ initialSessions, orgId }: Props) {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Active Onboardings</h1>
-      <p className="mt-1 text-gray-500">
+      <h1 className="font-display text-2xl font-bold tracking-tight text-zinc-50">Active Onboardings</h1>
+      <p className="mt-1 text-sm text-zinc-400">
         Real-time status of all client onboarding sessions
       </p>
 
       <div className="mt-6 grid grid-cols-3 gap-4">
-        <div className="rounded-lg border bg-white p-6">
-          <p className="text-sm text-gray-500">Active</p>
-          <p className="mt-1 text-3xl font-bold text-green-600">
+        <div className="rounded-xl border border-zinc-800 border-l-2 border-l-emerald-500 bg-surface p-5">
+          <p className="text-sm text-zinc-400">Active</p>
+          <p className="mt-1 text-3xl font-bold text-emerald-400">
             {activeCount}
           </p>
         </div>
-        <div className="rounded-lg border bg-white p-6">
-          <p className="text-sm text-gray-500">Paused / Waiting</p>
-          <p className="mt-1 text-3xl font-bold text-yellow-600">
+        <div className="rounded-xl border border-zinc-800 border-l-2 border-l-amber-500 bg-surface p-5">
+          <p className="text-sm text-zinc-400">Paused / Waiting</p>
+          <p className="mt-1 text-3xl font-bold text-amber-400">
             {pausedCount}
           </p>
         </div>
-        <div className="rounded-lg border bg-white p-6">
-          <p className="text-sm text-gray-500">Completed</p>
-          <p className="mt-1 text-3xl font-bold text-brand-600">
+        <div className="rounded-xl border border-zinc-800 border-l-2 border-l-brand-500 bg-surface p-5">
+          <p className="text-sm text-zinc-400">Completed</p>
+          <p className="mt-1 text-3xl font-bold text-brand-400">
             {completedCount}
           </p>
         </div>
       </div>
 
-      <div className="mt-8">
+      <div className="mt-8 rounded-xl border border-zinc-800 bg-surface overflow-hidden">
         <table className="w-full">
           <thead>
-            <tr className="border-b text-left text-sm text-gray-500">
-              <th className="pb-3 font-medium">Client</th>
-              <th className="pb-3 font-medium">Business</th>
-              <th className="pb-3 font-medium">Status</th>
-              <th className="pb-3 font-medium">Progress</th>
-              <th className="pb-3 font-medium">Channel</th>
-              <th className="pb-3 font-medium">Last Activity</th>
+            <tr className="border-b border-zinc-800/60">
+              <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">Client</th>
+              <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">Business</th>
+              <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">Status</th>
+              <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">Progress</th>
+              <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">Channel</th>
+              <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">Last Activity</th>
             </tr>
           </thead>
-          <tbody className="divide-y">
+          <tbody className="divide-y divide-zinc-800/60">
             {sessions.map((session) => (
-              <tr key={session.id} className="text-sm">
-                <td className="py-3">
-                  <div className="font-medium">
+              <tr key={session.id}>
+                <td className="px-5 py-3.5 text-sm">
+                  <div className="font-medium text-zinc-50">
                     {(session.client as Record<string, string>)?.name ?? "Unknown"}
                   </div>
-                  <div className="text-gray-500">
+                  <div className="text-zinc-500">
                     {(session.client as Record<string, string>)?.email}
                   </div>
                 </td>
-                <td className="py-3">
+                <td className="px-5 py-3.5 text-sm text-zinc-300">
                   {(session.client as Record<string, string>)?.business_name || "\u2014"}
                 </td>
-                <td className="py-3">
+                <td className="px-5 py-3.5 text-sm">
                   <span
-                    className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                    className={
                       session.status === "active"
-                        ? "bg-green-100 text-green-700"
+                        ? "badge-success"
                         : session.status === "completed"
-                          ? "bg-brand-100 text-brand-700"
+                          ? "badge-brand"
                           : session.status === "paused"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : "bg-gray-100 text-gray-700"
-                    }`}
+                            ? "badge-warning"
+                            : "badge-neutral"
+                    }
                   >
                     {session.status}
                   </span>
                 </td>
-                <td className="py-3">
+                <td className="px-5 py-3.5 text-sm">
                   <div className="flex items-center gap-2">
-                    <div className="h-2 w-24 rounded-full bg-gray-200">
+                    <div className="h-1.5 w-24 rounded-full bg-zinc-800">
                       <div
-                        className="h-2 rounded-full bg-brand-500"
+                        className="h-1.5 rounded-full bg-brand-500"
                         style={{
                           width: `${session.completion_pct}%`,
                         }}
                       />
                     </div>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-zinc-500">
                       {session.completion_pct}%
                     </span>
                   </div>
                 </td>
-                <td className="py-3 text-gray-500">
+                <td className="px-5 py-3.5 text-sm text-zinc-400">
                   {session.current_channel || "\u2014"}
                 </td>
-                <td className="py-3 text-gray-500">
+                <td className="px-5 py-3.5 text-sm text-zinc-500">
                   {session.last_interaction_at
                     ? new Date(session.last_interaction_at).toLocaleString()
                     : "\u2014"}
@@ -133,7 +133,7 @@ export function RealtimeSessions({ initialSessions, orgId }: Props) {
             ))}
             {sessions.length === 0 && (
               <tr>
-                <td colSpan={6} className="py-8 text-center text-gray-400">
+                <td colSpan={6} className="py-8 text-center text-zinc-500">
                   No onboarding sessions yet. They will appear here once clients
                   start paying.
                 </td>

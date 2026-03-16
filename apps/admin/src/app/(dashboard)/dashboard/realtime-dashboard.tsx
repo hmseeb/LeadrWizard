@@ -168,12 +168,12 @@ export function RealtimeDashboard({
         <KPICard
           label="Total Clients"
           value={counts.totalClientCount}
-          color="blue"
+          color="sky"
         />
         <KPICard
           label="Open Escalations"
           value={counts.openEscalationCount}
-          color={counts.openEscalationCount > 0 ? "red" : "gray"}
+          color={counts.openEscalationCount > 0 ? "rose" : "zinc"}
         />
       </div>
 
@@ -188,7 +188,7 @@ export function RealtimeDashboard({
         <KPICard
           label="Pending Outreach"
           value={counts.pendingOutreachCount}
-          color="yellow"
+          color="amber"
           small
         />
         <KPICard
@@ -200,15 +200,15 @@ export function RealtimeDashboard({
         <KPICard
           label="Today's Interactions"
           value={counts.todayInteractionsCount}
-          color="blue"
+          color="sky"
           small
         />
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         {/* Recent Escalations - live updated */}
-        <div className="rounded-lg border bg-white p-6">
-          <h2 className="text-lg font-semibold">Recent Escalations</h2>
+        <div className="rounded-xl border border-zinc-800 bg-surface p-5">
+          <h2 className="font-display text-lg font-semibold text-zinc-50">Recent Escalations</h2>
           <div className="mt-4 space-y-3">
             {recentEscalations.length > 0 ? (
               recentEscalations.map((esc) => {
@@ -219,24 +219,24 @@ export function RealtimeDashboard({
                 return (
                   <div
                     key={esc.id}
-                    className="flex items-start justify-between text-sm"
+                    className="flex items-start justify-between rounded-lg border border-zinc-800/80 bg-zinc-900/50 p-3 text-sm"
                   >
                     <div>
-                      <p className="font-medium text-gray-900">
+                      <p className="font-medium text-zinc-100">
                         {esc.reason.substring(0, 60)}
                         {esc.reason.length > 60 ? "..." : ""}
                       </p>
-                      <p className="text-gray-500">
+                      <p className="mt-0.5 text-zinc-500">
                         {client?.name} — {client?.business_name || "N/A"}
                       </p>
                     </div>
                     <span
-                      className={`ml-2 flex-shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+                      className={`ml-2 flex-shrink-0 ${
                         esc.status === "open"
-                          ? "bg-red-100 text-red-700"
+                          ? "badge-danger"
                           : esc.status === "assigned"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : "bg-green-100 text-green-700"
+                            ? "badge-warning"
+                            : "badge-success"
                       }`}
                     >
                       {esc.status}
@@ -245,7 +245,7 @@ export function RealtimeDashboard({
                 );
               })
             ) : (
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-zinc-500">
                 No escalations. The bot is handling everything.
               </p>
             )}
@@ -270,20 +270,20 @@ function KPICard({
   color: string;
   small?: boolean;
 }) {
-  const colorMap: Record<string, string> = {
-    green: "text-green-600",
-    brand: "text-brand-600",
-    blue: "text-blue-600",
-    red: "text-red-600",
-    yellow: "text-yellow-600",
-    gray: "text-gray-400",
+  const borderMap: Record<string, string> = {
+    green: "border-l-emerald-500",
+    brand: "border-l-brand-500",
+    sky: "border-l-sky-500",
+    rose: "border-l-rose-500",
+    amber: "border-l-amber-500",
+    zinc: "border-l-zinc-600",
   };
 
   return (
-    <div className="rounded-lg border bg-white p-4">
-      <p className="text-sm text-gray-500">{label}</p>
+    <div className={`rounded-xl border border-zinc-800 bg-surface p-4 border-l-2 ${borderMap[color] || "border-l-zinc-600"}`}>
+      <p className="text-sm text-zinc-400">{label}</p>
       <p
-        className={`mt-1 font-bold ${colorMap[color] || "text-gray-900"} ${
+        className={`mt-1 font-bold text-zinc-50 ${
           small ? "text-xl" : "text-3xl"
         }`}
       >

@@ -66,19 +66,19 @@ export function PackageForm({
 
       <div className="space-y-8">
         {error && (
-          <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700">
+          <div className="rounded-lg border border-rose-500/20 bg-rose-600/10 p-4 text-sm text-rose-400">
             {error}
           </div>
         )}
 
         {/* Basic Info */}
-        <div className="rounded-lg border bg-white p-6">
-          <h2 className="text-lg font-semibold">Package Details</h2>
+        <div className="rounded-xl border border-zinc-800 bg-surface p-6">
+          <h2 className="text-lg font-semibold text-zinc-50">Package Details</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
               <label
                 htmlFor="name"
-                className="block text-sm font-medium text-gray-700"
+                className="block text-sm font-medium text-zinc-300 mb-1.5"
               >
                 Package Name
               </label>
@@ -91,18 +91,18 @@ export function PackageForm({
                 maxLength={100}
                 defaultValue={initialData?.name || ""}
                 placeholder="e.g. Pro Bundle"
-                className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500/30 transition-colors"
               />
             </div>
             <div>
               <label
                 htmlFor="price"
-                className="block text-sm font-medium text-gray-700"
+                className="block text-sm font-medium text-zinc-300 mb-1.5"
               >
                 Price (USD)
               </label>
-              <div className="relative mt-1">
-                <span className="pointer-events-none absolute left-3 top-2 text-sm text-gray-400">
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3.5 top-2.5 text-sm text-zinc-500">
                   $
                 </span>
                 <input
@@ -113,7 +113,7 @@ export function PackageForm({
                   min="0"
                   defaultValue={initialPriceDollars}
                   placeholder="0.00"
-                  className="w-full rounded-md border py-2 pl-7 pr-3 text-sm"
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 py-2.5 pl-7 pr-3.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500/30 transition-colors"
                   onChange={(e) => {
                     // Convert dollars to cents in a hidden field
                     const cents = e.target.value
@@ -135,7 +135,7 @@ export function PackageForm({
             <div className="sm:col-span-2">
               <label
                 htmlFor="description"
-                className="block text-sm font-medium text-gray-700"
+                className="block text-sm font-medium text-zinc-300 mb-1.5"
               >
                 Description
               </label>
@@ -145,26 +145,26 @@ export function PackageForm({
                 rows={3}
                 defaultValue={initialData?.description || ""}
                 placeholder="What's included in this package..."
-                className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500/30 transition-colors"
               />
             </div>
           </div>
         </div>
 
         {/* Service Assignment */}
-        <div className="rounded-lg border bg-white p-6">
-          <h2 className="text-lg font-semibold">Included Services</h2>
-          <p className="mt-1 text-sm text-gray-500">
+        <div className="rounded-xl border border-zinc-800 bg-surface p-6">
+          <h2 className="text-lg font-semibold text-zinc-50">Included Services</h2>
+          <p className="mt-1 text-sm text-zinc-400">
             Select which services are included in this package. Only active
             services are shown.
           </p>
           <div className="mt-4 space-y-2">
             {availableServices.length === 0 ? (
-              <div className="rounded-lg border border-dashed p-4 text-center text-sm text-gray-400">
+              <div className="rounded-lg border border-dashed border-zinc-700 p-4 text-center text-sm text-zinc-500">
                 No services defined yet.{" "}
                 <Link
                   href="/services/new"
-                  className="text-brand-600 hover:text-brand-700"
+                  className="text-brand-400 hover:text-brand-300"
                 >
                   Create a service
                 </Link>{" "}
@@ -176,19 +176,19 @@ export function PackageForm({
                   key={service.id}
                   className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
                     selectedServices.includes(service.id)
-                      ? "border-brand-300 bg-brand-50"
-                      : "border-gray-200 hover:border-gray-300"
+                      ? "border-brand-500/40 bg-brand-600/10"
+                      : "border-zinc-700 hover:border-zinc-600"
                   }`}
                 >
                   <input
                     type="checkbox"
                     checked={selectedServices.includes(service.id)}
                     onChange={() => toggleService(service.id)}
-                    className="rounded border-gray-300"
+                    className="rounded border-zinc-600 bg-zinc-800 text-brand-500 focus:ring-brand-500/30"
                   />
                   <div>
-                    <span className="text-sm font-medium">{service.name}</span>
-                    <span className="ml-2 text-xs text-gray-400">
+                    <span className="text-sm font-medium text-zinc-100">{service.name}</span>
+                    <span className="ml-2 text-xs text-zinc-500">
                       {service.slug}
                     </span>
                   </div>
@@ -196,7 +196,7 @@ export function PackageForm({
               ))
             )}
           </div>
-          <p className="mt-2 text-xs text-gray-400">
+          <p className="mt-2 text-xs text-zinc-500">
             {selectedServices.length} service{selectedServices.length !== 1 ? "s" : ""} selected
           </p>
         </div>
@@ -205,14 +205,14 @@ export function PackageForm({
         <div className="flex items-center justify-between">
           <Link
             href="/packages"
-            className="text-sm text-gray-500 hover:text-gray-700"
+            className="text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
           >
             Cancel
           </Link>
           <button
             type="submit"
             disabled={isPending}
-            className="rounded-lg bg-brand-600 px-6 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+            className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-500 disabled:opacity-50 transition-all shadow-sm"
           >
             {isPending
               ? mode === "create"

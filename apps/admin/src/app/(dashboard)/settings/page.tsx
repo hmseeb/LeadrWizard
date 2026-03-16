@@ -46,21 +46,21 @@ export default async function SettingsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Settings</h1>
-      <p className="mt-1 text-gray-500">
+      <h1 className="font-display text-2xl font-bold tracking-tight text-zinc-50">Settings</h1>
+      <p className="mt-1 text-zinc-400">
         Configure integrations and automation behavior
       </p>
 
       <div className="mt-6 space-y-8">
         <section>
-          <h2 className="mb-4 text-lg font-semibold text-gray-800">
+          <h2 className="mb-4 text-lg font-semibold text-zinc-200">
             Integration Credentials
           </h2>
           <CredentialsForm config={integrationConfig} />
         </section>
 
         <section>
-          <h2 className="mb-4 text-lg font-semibold text-gray-800">
+          <h2 className="mb-4 text-lg font-semibold text-zinc-200">
             Automation & Escalation
           </h2>
           <CadenceForm settings={settings} />

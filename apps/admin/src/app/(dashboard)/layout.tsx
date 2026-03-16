@@ -10,8 +10,8 @@ export default function DashboardLayout({
   return (
     <div className="flex h-screen">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-7xl px-6 py-8">{children}</div>
+      <main className="flex-1 overflow-y-auto bg-zinc-950">
+        <div className="mx-auto max-w-7xl px-8 py-8">{children}</div>
       </main>
     </div>
   );

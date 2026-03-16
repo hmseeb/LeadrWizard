@@ -13,6 +13,7 @@ import {
   Inbox,
   Settings,
   CreditCard,
+  Zap,
 } from "lucide-react";
 
 const navigation = [
@@ -32,29 +33,50 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r border-gray-200 bg-white">
-      <div className="flex h-16 items-center border-b border-gray-200 px-6">
-        <h1 className="text-xl font-bold text-brand-600">LeadrWizard</h1>
+    <aside className="flex h-screen w-[260px] flex-col border-r border-zinc-800/80 bg-zinc-950">
+      {/* Logo */}
+      <div className="flex h-16 items-center gap-2.5 border-b border-zinc-800/80 px-5">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 shadow-glow">
+          <Zap className="h-4 w-4 text-white" />
+        </div>
+        <span className="font-display text-lg font-bold tracking-tight text-zinc-50">
+          LeadrWizard
+        </span>
       </div>
-      <nav className="flex-1 space-y-1 px-3 py-4">
+
+      {/* Navigation */}
+      <nav className="flex-1 space-y-0.5 px-3 py-4 overflow-y-auto">
         {navigation.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (
             <Link
               key={item.name}
               href={item.href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`group flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150 ${
                 isActive
-                  ? "bg-brand-50 text-brand-700"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  ? "bg-brand-600/10 text-brand-400 shadow-sm ring-1 ring-brand-500/20"
+                  : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
               }`}
             >
-              <item.icon className="h-5 w-5" />
+              <item.icon
+                className={`h-[18px] w-[18px] transition-colors ${
+                  isActive
+                    ? "text-brand-400"
+                    : "text-zinc-500 group-hover:text-zinc-300"
+                }`}
+              />
               {item.name}
             </Link>
           );
         })}
       </nav>
+
+      {/* Footer */}
+      <div className="border-t border-zinc-800/80 px-5 py-3">
+        <p className="text-[11px] text-zinc-600">
+          LeadrWizard v1.0
+        </p>
+      </div>
     </aside>
   );
 }

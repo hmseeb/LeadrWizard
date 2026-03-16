@@ -50,18 +50,18 @@ export function SetupWizard({
   const completedCount = steps.filter((s) => stateMap[s.checkKey]).length;
 
   return (
-    <div className="rounded-xl border-2 border-dashed border-brand-300 bg-brand-50/50 p-8">
-      <h2 className="text-xl font-bold text-gray-900">
+    <div className="rounded-xl border-2 border-dashed border-brand-600/40 bg-brand-500/5 p-8">
+      <h2 className="font-display text-xl font-bold text-zinc-50">
         Welcome to LeadrWizard, {orgName}!
       </h2>
-      <p className="mt-2 text-gray-600">
+      <p className="mt-2 text-zinc-300">
         Complete these steps to start onboarding clients automatically.
       </p>
-      <div className="mt-1 text-sm text-gray-500">
+      <div className="mt-1 text-sm text-zinc-500">
         {completedCount} of {steps.length} steps completed
       </div>
 
-      <div className="mt-6 space-y-4">
+      <div className="mt-6 space-y-3">
         {steps.map((step, i) => {
           const done = stateMap[step.checkKey];
           const Icon = step.icon;
@@ -70,17 +70,17 @@ export function SetupWizard({
             <Link
               key={step.key}
               href={step.href}
-              className={`flex items-start gap-4 rounded-lg border p-4 transition-colors ${
+              className={`flex items-start gap-4 rounded-xl border p-4 transition-all duration-200 ${
                 done
-                  ? "border-green-200 bg-green-50"
-                  : "border-gray-200 bg-white hover:border-brand-300 hover:bg-brand-50/30"
+                  ? "border-emerald-500/30 bg-emerald-500/5 ring-1 ring-emerald-500/20"
+                  : "border-zinc-800 bg-surface hover:border-brand-600/40 hover:bg-surface-elevated"
               }`}
             >
               <div
                 className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${
                   done
-                    ? "bg-green-500 text-white"
-                    : "bg-gray-100 text-gray-500"
+                    ? "bg-emerald-500 text-white"
+                    : "bg-zinc-800 text-zinc-400"
                 }`}
               >
                 {done ? (
@@ -91,15 +91,15 @@ export function SetupWizard({
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <Icon className="h-4 w-4 text-gray-400" />
-                  <h3 className="font-semibold text-gray-900">{step.title}</h3>
+                  <Icon className="h-4 w-4 text-zinc-500" />
+                  <h3 className="font-semibold text-zinc-100">{step.title}</h3>
                 </div>
-                <p className="mt-0.5 text-sm text-gray-500">
+                <p className="mt-0.5 text-sm text-zinc-400">
                   {step.description}
                 </p>
               </div>
               {!done && (
-                <span className="flex-shrink-0 text-sm font-medium text-brand-600">
+                <span className="flex-shrink-0 text-sm font-medium text-brand-400">
                   Start
                 </span>
               )}

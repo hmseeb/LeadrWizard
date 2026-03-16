@@ -21,14 +21,14 @@ export default async function PackagesPage() {
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Service Packages</h1>
-          <p className="mt-1 text-gray-500">
+          <h1 className="font-display text-2xl font-bold tracking-tight text-zinc-50">Service Packages</h1>
+          <p className="mt-1 text-sm text-zinc-400">
             Bundle services into packages that clients can purchase
           </p>
         </div>
         <Link
           href="/packages/new"
-          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          className="btn-primary"
         >
           Create Package
         </Link>
@@ -41,12 +41,12 @@ export default async function PackagesPage() {
           }>;
 
           return (
-            <div key={pkg.id} className="rounded-lg border bg-white p-6">
+            <div key={pkg.id} className="rounded-xl border border-zinc-800 bg-surface p-5">
               <div className="flex items-start justify-between">
-                <h3 className="text-lg font-semibold">{pkg.name}</h3>
+                <h3 className="text-lg font-semibold text-zinc-50">{pkg.name}</h3>
                 <div className="flex items-center gap-2">
                   {pkg.price_cents != null && (
-                    <span className="text-lg font-bold text-brand-600">
+                    <span className="text-lg font-bold text-brand-400">
                       ${(pkg.price_cents / 100).toFixed(2)}
                     </span>
                   )}
@@ -57,23 +57,23 @@ export default async function PackagesPage() {
                 </div>
               </div>
               {pkg.description && (
-                <p className="mt-2 text-sm text-gray-500">{pkg.description}</p>
+                <p className="mt-2 text-sm text-zinc-400">{pkg.description}</p>
               )}
               <div className="mt-4">
-                <p className="text-xs font-medium uppercase text-gray-400">
+                <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
                   Included Services ({services.length})
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {services.map((ps, i) => (
                     <span
                       key={i}
-                      className="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700"
+                      className="rounded-full bg-brand-500/15 px-3 py-1 text-xs font-medium text-brand-400 ring-1 ring-brand-500/20"
                     >
                       {ps.service?.name || "Unknown"}
                     </span>
                   ))}
                   {services.length === 0 && (
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-zinc-500">
                       No services assigned
                     </span>
                   )}
@@ -83,11 +83,11 @@ export default async function PackagesPage() {
           );
         })}
         {(!packages || packages.length === 0) && (
-          <div className="col-span-2 rounded-lg border bg-white p-8 text-center text-gray-400">
+          <div className="col-span-2 rounded-xl border border-zinc-800 bg-surface p-8 text-center text-zinc-500">
             No packages created yet.{" "}
             <Link
               href="/packages/new"
-              className="text-brand-600 hover:text-brand-700"
+              className="text-brand-400 hover:text-brand-300"
             >
               Create your first package
             </Link>.

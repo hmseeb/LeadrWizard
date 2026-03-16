@@ -29,19 +29,19 @@ export function ServiceForm({ mode, initialData, action }: ServiceFormProps) {
     <form action={formAction}>
       <div className="space-y-8">
         {error && (
-          <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700">
+          <div className="rounded-lg border border-rose-500/20 bg-rose-600/10 p-4 text-sm text-rose-400">
             {error}
           </div>
         )}
 
         {/* Basic Info */}
-        <div className="rounded-lg border bg-white p-6">
-          <h2 className="text-lg font-semibold">Basic Information</h2>
+        <div className="rounded-xl border border-zinc-800 bg-surface p-6">
+          <h2 className="text-lg font-semibold text-zinc-50">Basic Information</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <label
                 htmlFor="name"
-                className="block text-sm font-medium text-gray-700"
+                className="block text-sm font-medium text-zinc-300 mb-1.5"
               >
                 Service Name
               </label>
@@ -54,13 +54,13 @@ export function ServiceForm({ mode, initialData, action }: ServiceFormProps) {
                 maxLength={100}
                 defaultValue={initialData?.name || ""}
                 placeholder="e.g. A2P Registration"
-                className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500/30 transition-colors"
               />
             </div>
             <div className="sm:col-span-2">
               <label
                 htmlFor="description"
-                className="block text-sm font-medium text-gray-700"
+                className="block text-sm font-medium text-zinc-300 mb-1.5"
               >
                 Description
               </label>
@@ -70,16 +70,16 @@ export function ServiceForm({ mode, initialData, action }: ServiceFormProps) {
                 rows={3}
                 defaultValue={initialData?.description || ""}
                 placeholder="What this service does and why clients need it..."
-                className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500/30 transition-colors"
               />
             </div>
           </div>
         </div>
 
         {/* Required Data Fields */}
-        <div className="rounded-lg border bg-white p-6">
-          <h2 className="text-lg font-semibold">Required Data Fields</h2>
-          <p className="mt-1 text-sm text-gray-500">
+        <div className="rounded-xl border border-zinc-800 bg-surface p-6">
+          <h2 className="text-lg font-semibold text-zinc-50">Required Data Fields</h2>
+          <p className="mt-1 text-sm text-zinc-400">
             Define what information the onboarding agent needs to collect from
             clients for this service.
           </p>
@@ -92,9 +92,9 @@ export function ServiceForm({ mode, initialData, action }: ServiceFormProps) {
         </div>
 
         {/* Setup Steps */}
-        <div className="rounded-lg border bg-white p-6">
-          <h2 className="text-lg font-semibold">Setup Steps</h2>
-          <p className="mt-1 text-sm text-gray-500">
+        <div className="rounded-xl border border-zinc-800 bg-surface p-6">
+          <h2 className="text-lg font-semibold text-zinc-50">Setup Steps</h2>
+          <p className="mt-1 text-sm text-zinc-400">
             Define the steps to provision this service after data collection.
             Automated steps run without human intervention.
           </p>
@@ -110,14 +110,14 @@ export function ServiceForm({ mode, initialData, action }: ServiceFormProps) {
         <div className="flex items-center justify-between">
           <Link
             href="/services"
-            className="text-sm text-gray-500 hover:text-gray-700"
+            className="text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
           >
             Cancel
           </Link>
           <button
             type="submit"
             disabled={isPending}
-            className="rounded-lg bg-brand-600 px-6 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+            className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-500 disabled:opacity-50 transition-all shadow-sm"
           >
             {isPending
               ? mode === "create"

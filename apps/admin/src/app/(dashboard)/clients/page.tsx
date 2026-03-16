@@ -17,24 +17,24 @@ export default async function ClientsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Clients</h1>
-      <p className="mt-1 text-gray-500">
+      <h1 className="font-display text-2xl font-bold tracking-tight text-zinc-50">Clients</h1>
+      <p className="mt-1 text-sm text-zinc-400">
         All clients across onboarding stages
       </p>
 
-      <div className="mt-6">
+      <div className="mt-6 rounded-xl border border-zinc-800 bg-surface overflow-hidden">
         <table className="w-full">
           <thead>
-            <tr className="border-b text-left text-sm text-gray-500">
-              <th className="pb-3 font-medium">Name</th>
-              <th className="pb-3 font-medium">Business</th>
-              <th className="pb-3 font-medium">Email</th>
-              <th className="pb-3 font-medium">Services</th>
-              <th className="pb-3 font-medium">Onboarding</th>
-              <th className="pb-3 font-medium">Joined</th>
+            <tr className="border-b border-zinc-800/60">
+              <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">Name</th>
+              <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">Business</th>
+              <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">Email</th>
+              <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">Services</th>
+              <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">Onboarding</th>
+              <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">Joined</th>
             </tr>
           </thead>
-          <tbody className="divide-y">
+          <tbody className="divide-y divide-zinc-800/60">
             {clients?.map((client) => {
               const sessions = (client.onboarding_sessions || []) as Array<{
                 status: string;
@@ -51,40 +51,40 @@ export default async function ClientsPage() {
               ).length;
 
               return (
-                <tr key={client.id} className="text-sm">
-                  <td className="py-3">
+                <tr key={client.id}>
+                  <td className="px-5 py-3.5 text-sm">
                     <Link
                       href={`/clients/${client.id}`}
-                      className="font-medium text-brand-600 hover:text-brand-700"
+                      className="font-medium text-brand-400 hover:text-brand-300"
                     >
                       {client.name}
                     </Link>
                   </td>
-                  <td className="py-3">{client.business_name || "—"}</td>
-                  <td className="py-3 text-gray-500">{client.email}</td>
-                  <td className="py-3 text-gray-500">
+                  <td className="px-5 py-3.5 text-sm text-zinc-300">{client.business_name || "\u2014"}</td>
+                  <td className="px-5 py-3.5 text-sm text-zinc-400">{client.email}</td>
+                  <td className="px-5 py-3.5 text-sm text-zinc-400">
                     {deliveredCount}/{activeServices.length} delivered
                   </td>
-                  <td className="py-3">
+                  <td className="px-5 py-3.5 text-sm">
                     {activeSession ? (
                       <div className="flex items-center gap-2">
-                        <div className="h-2 w-16 rounded-full bg-gray-200">
+                        <div className="h-1.5 w-16 rounded-full bg-zinc-800">
                           <div
-                            className="h-2 rounded-full bg-brand-500"
+                            className="h-1.5 rounded-full bg-brand-500"
                             style={{
                               width: `${activeSession.completion_pct}%`,
                             }}
                           />
                         </div>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-zinc-500">
                           {activeSession.completion_pct}%
                         </span>
                       </div>
                     ) : (
-                      "—"
+                      <span className="text-zinc-500">{"\u2014"}</span>
                     )}
                   </td>
-                  <td className="py-3 text-gray-500">
+                  <td className="px-5 py-3.5 text-sm text-zinc-500">
                     {new Date(client.created_at).toLocaleDateString()}
                   </td>
                 </tr>
@@ -92,7 +92,7 @@ export default async function ClientsPage() {
             })}
             {(!clients || clients.length === 0) && (
               <tr>
-                <td colSpan={6} className="py-8 text-center text-gray-400">
+                <td colSpan={6} className="py-8 text-center text-zinc-500">
                   No clients yet.
                 </td>
               </tr>

@@ -184,8 +184,8 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Dashboard</h1>
-      <p className="mt-1 text-gray-500">Overview of your onboarding operations</p>
+      <h1 className="page-title">Dashboard</h1>
+      <p className="page-subtitle">Overview of your onboarding operations</p>
 
       {showWizard && (
         <div className="mt-6">
@@ -204,43 +204,43 @@ export default async function DashboardPage() {
         orgId={orgId}
       >
         {/* Today's Outreach */}
-        <div className="rounded-lg border bg-white p-6">
-          <h2 className="text-lg font-semibold">Today&apos;s Outreach</h2>
+        <div className="rounded-xl border border-zinc-800 bg-surface p-5">
+          <h2 className="font-display text-lg font-semibold text-zinc-50">Today&apos;s Outreach</h2>
           <div className="mt-4 space-y-3">
-            <ChannelBar label="SMS" count={todaySMS} color="bg-blue-500" max={Math.max(todaySMS, todayVoice, todayEmail, 1)} />
+            <ChannelBar label="SMS" count={todaySMS} color="bg-sky-500" max={Math.max(todaySMS, todayVoice, todayEmail, 1)} />
             <ChannelBar label="Voice Calls" count={todayVoice} color="bg-purple-500" max={Math.max(todaySMS, todayVoice, todayEmail, 1)} />
-            <ChannelBar label="Email" count={todayEmail} color="bg-green-500" max={Math.max(todaySMS, todayVoice, todayEmail, 1)} />
+            <ChannelBar label="Email" count={todayEmail} color="bg-brand-500" max={Math.max(todaySMS, todayVoice, todayEmail, 1)} />
           </div>
         </div>
 
         {/* Pending Service Tasks */}
-        <div className="rounded-lg border bg-white p-6">
-          <h2 className="text-lg font-semibold">Pending Service Tasks</h2>
+        <div className="rounded-xl border border-zinc-800 bg-surface p-5">
+          <h2 className="font-display text-lg font-semibold text-zinc-50">Pending Service Tasks</h2>
           <div className="mt-4 space-y-3">
             {Object.entries(tasksByType).length > 0 ? (
               Object.entries(tasksByType).map(([type, count]) => (
                 <div key={type} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">
+                  <span className="text-sm text-zinc-300">
                     {formatTaskType(type)}
                   </span>
-                  <span className="rounded-full bg-yellow-100 px-2.5 py-0.5 text-sm font-medium text-yellow-700">
+                  <span className="badge-warning">
                     {count}
                   </span>
                 </div>
               ))
             ) : (
-              <p className="text-sm text-gray-400">No pending tasks</p>
+              <p className="text-sm text-zinc-500">No pending tasks</p>
             )}
           </div>
         </div>
 
         {/* Historical Trends */}
-        <div className="rounded-lg border bg-white p-6">
-          <h2 className="text-lg font-semibold">14-Day Trend</h2>
+        <div className="rounded-xl border border-zinc-800 bg-surface p-5">
+          <h2 className="font-display text-lg font-semibold text-zinc-50">14-Day Trend</h2>
           <div className="mt-4">
             {typedSnapshots.length > 0 ? (
               <div className="space-y-2">
-                <div className="grid grid-cols-5 gap-2 text-xs font-medium text-gray-500">
+                <div className="grid grid-cols-5 gap-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
                   <span>Date</span>
                   <span>Completed</span>
                   <span>Interactions</span>
@@ -250,26 +250,26 @@ export default async function DashboardPage() {
                 {typedSnapshots.slice(0, 7).map((snap) => (
                   <div
                     key={snap.snapshot_date}
-                    className="grid grid-cols-5 gap-2 text-sm"
+                    className="grid grid-cols-5 gap-2 text-sm text-zinc-300"
                   >
-                    <span className="text-gray-500">
+                    <span className="text-zinc-500">
                       {new Date(snap.snapshot_date).toLocaleDateString(undefined, {
                         month: "short",
                         day: "numeric",
                       })}
                     </span>
-                    <span className="font-medium text-green-600">
+                    <span className="font-medium text-emerald-400">
                       {snap.completed_sessions}
                     </span>
                     <span>{snap.total_interactions}</span>
-                    <span className="text-brand-600">
+                    <span className="text-brand-400">
                       {snap.services_delivered}
                     </span>
                     <span
                       className={
                         snap.escalations_opened > 0
-                          ? "text-red-600"
-                          : "text-gray-400"
+                          ? "text-rose-400"
+                          : "text-zinc-500"
                       }
                     >
                       {snap.escalations_opened}
@@ -278,7 +278,7 @@ export default async function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-zinc-500">
                 Analytics data will appear after the first daily snapshot runs.
               </p>
             )}
@@ -305,12 +305,12 @@ function ChannelBar({
   return (
     <div>
       <div className="flex items-center justify-between text-sm">
-        <span className="text-gray-600">{label}</span>
-        <span className="font-medium">{count}</span>
+        <span className="text-zinc-400">{label}</span>
+        <span className="font-medium text-zinc-200">{count}</span>
       </div>
-      <div className="mt-1 h-2 w-full rounded-full bg-gray-100">
+      <div className="mt-1 h-2 w-full rounded-full bg-zinc-800">
         <div
-          className={`h-2 rounded-full ${color}`}
+          className={`h-2 rounded-full ${color} transition-all duration-300`}
           style={{ width: `${width}%` }}
         />
       </div>

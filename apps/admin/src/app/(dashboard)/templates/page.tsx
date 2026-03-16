@@ -8,9 +8,9 @@ const channelConfig: Record<
   MessageChannel,
   { label: string; icon: typeof MessageSquare; color: string }
 > = {
-  sms: { label: "SMS", icon: MessageSquare, color: "text-green-600 bg-green-100" },
-  email: { label: "Email", icon: Mail, color: "text-blue-600 bg-blue-100" },
-  voice: { label: "Voice", icon: Phone, color: "text-purple-600 bg-purple-100" },
+  sms: { label: "SMS", icon: MessageSquare, color: "text-emerald-400 ring-1 ring-emerald-500/30 bg-emerald-500/10" },
+  email: { label: "Email", icon: Mail, color: "text-sky-400 ring-1 ring-sky-500/30 bg-sky-500/10" },
+  voice: { label: "Voice", icon: Phone, color: "text-purple-400 ring-1 ring-purple-500/30 bg-purple-500/10" },
 };
 
 export default async function TemplatesPage() {
@@ -41,26 +41,26 @@ export default async function TemplatesPage() {
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Message Templates</h1>
-          <p className="mt-1 text-gray-500">
+          <h1 className="font-display text-2xl font-bold tracking-tight text-zinc-50">Message Templates</h1>
+          <p className="mt-1 text-sm text-zinc-400">
             Outreach templates for SMS, email, and voice messages. Use{" "}
             {"{{variables}}"} for dynamic content.
           </p>
         </div>
         <Link
           href="/templates/new"
-          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          className="btn-primary"
         >
           Create Template
         </Link>
       </div>
 
       {totalCount === 0 ? (
-        <div className="mt-6 rounded-lg border bg-white p-8 text-center text-gray-400">
+        <div className="mt-6 rounded-xl border border-zinc-800 bg-surface p-8 text-center text-zinc-500">
           No message templates yet.{" "}
           <Link
             href="/templates/new"
-            className="text-brand-600 hover:text-brand-700"
+            className="text-brand-400 hover:text-brand-300"
           >
             Create your first template
           </Link>{" "}
@@ -77,16 +77,16 @@ export default async function TemplatesPage() {
 
             return (
               <div key={ch}>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <div
-                    className={`flex h-7 w-7 items-center justify-center rounded-md ${config.color}`}
+                    className={`flex h-8 w-8 items-center justify-center rounded-lg ${config.color}`}
                   >
                     <Icon className="h-4 w-4" />
                   </div>
-                  <h2 className="text-lg font-semibold">
+                  <h2 className="text-lg font-semibold text-zinc-50">
                     {config.label} Templates
                   </h2>
-                  <span className="text-sm text-gray-400">
+                  <span className="text-sm text-zinc-500">
                     ({items.length})
                   </span>
                 </div>
@@ -108,24 +108,24 @@ export default async function TemplatesPage() {
                     return (
                       <div
                         key={template.id}
-                        className="rounded-lg border bg-white p-4"
+                        className="rounded-xl border border-zinc-800 bg-surface p-5"
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
-                              <h3 className="font-semibold">
+                              <h3 className="font-semibold text-zinc-50">
                                 {template.name}
                               </h3>
-                              <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-mono text-gray-500">
+                              <span className="rounded-md bg-zinc-800 px-1.5 py-0.5 text-xs font-mono text-zinc-400">
                                 {template.slug}
                               </span>
                             </div>
                             {ch === "email" && template.subject && (
-                              <p className="mt-1 text-sm text-gray-600">
+                              <p className="mt-1 text-sm text-zinc-300">
                                 Subject: {template.subject}
                               </p>
                             )}
-                            <p className="mt-1 text-sm text-gray-500">
+                            <p className="mt-1 text-sm text-zinc-400">
                               {bodyPreview}
                             </p>
                             {uniqueVars.length > 0 && (
@@ -133,7 +133,7 @@ export default async function TemplatesPage() {
                                 {uniqueVars.map((v) => (
                                   <span
                                     key={v}
-                                    className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-mono text-gray-500"
+                                    className="rounded-md bg-zinc-800 px-1.5 py-0.5 text-xs font-mono text-zinc-400"
                                   >
                                     {`{{${v}}}`}
                                   </span>
