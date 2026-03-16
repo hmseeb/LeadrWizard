@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient, createSupabaseServiceClient } from "@/lib/supabase-server";
 import { getUserOrg } from "@leadrwizard/shared/tenant";
 import { redirect } from "next/navigation";
 import { retryDLQEntry, dismissDLQEntry } from "./actions";
@@ -13,21 +13,12 @@ export default async function DeadLetterQueuePage() {
 
   if (!user) redirect("/login");
 
-  const orgData = user ? await getUserOrg(supabase, user.id) : null;
-  if (!orgData) {
-    return (
-      <div>
-        <div className="flex items-center gap-3">
-          <AlertOctagon className="h-6 w-6 text-rose-400" />
-          <h1 className="font-display text-2xl font-bold tracking-tight text-zinc-50">Dead Letter Queue</h1>
-        </div>
-        <p className="mt-4 text-zinc-400">Unable to load organization data. Please try refreshing the page.</p>
-      </div>
-    );
-  }
+  const serviceClient = createSupabaseServiceClient();
+  const orgData = user ? await getUserOrg(serviceClient, user.id) : null;
+  if (!orgData) redirect("/login");
 
   // Fetch active DLQ entries (not retried or dismissed)
-  const { data: activeEntries } = await supabase
+  const { data: activeEntries } = await serviceClient
     .from("dead_letter_queue")
     .select("*")
     .eq("org_id", orgData.org.id)
@@ -36,7 +27,7 @@ export default async function DeadLetterQueuePage() {
     .order("created_at", { ascending: false });
 
   // Fetch resolved entries (retried or dismissed)
-  const { data: resolvedEntries } = await supabase
+  const { data: resolvedEntries } = await serviceClient
     .from("dead_letter_queue")
     .select("*")
     .eq("org_id", orgData.org.id)

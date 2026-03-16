@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient, createSupabaseServiceClient } from "@/lib/supabase-server";
 import { getUserOrg } from "@leadrwizard/shared/tenant";
 import { redirect } from "next/navigation";
 import { CredentialsForm } from "./credentials-form";
@@ -13,18 +13,12 @@ export default async function SettingsPage() {
 
   if (!user) redirect("/login");
 
-  const orgData = user ? await getUserOrg(supabase, user.id) : null;
-  if (!orgData) {
-    return (
-      <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight text-zinc-50">Settings</h1>
-        <p className="mt-4 text-zinc-400">Unable to load organization settings. Please try refreshing the page.</p>
-      </div>
-    );
-  }
+  const serviceClient = createSupabaseServiceClient();
+  const orgData = user ? await getUserOrg(serviceClient, user.id) : null;
+  if (!orgData) redirect("/login");
 
   // Fetch org with credential columns (only non-secret fields + existence checks)
-  const { data: org } = await supabase
+  const { data: org } = await serviceClient
     .from("organizations")
     .select(
       "twilio_phone_number, twilio_account_sid_encrypted, ghl_api_key_encrypted, ghl_location_id, ghl_company_id, vapi_api_key_encrypted, vapi_assistant_id, elevenlabs_agent_id, settings"
