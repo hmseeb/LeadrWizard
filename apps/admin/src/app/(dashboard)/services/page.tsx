@@ -1,10 +1,10 @@
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import Link from "next/link";
 import type { DataFieldDefinition } from "@leadrwizard/shared/types";
 import { ServiceActions } from "./service-actions";
 
 export default async function ServicesPage() {
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseServiceClient();
   const { data: services } = await supabase
     .from("service_definitions")
     .select("*")
