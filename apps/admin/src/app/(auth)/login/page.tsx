@@ -114,6 +114,31 @@ export default function LoginPage() {
           >
             Send Magic Link
           </button>
+
+          <button
+            type="button"
+            onClick={async () => {
+              if (!email) {
+                setError("Enter your email first");
+                return;
+              }
+              setLoading(true);
+              setError(null);
+              const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: `${window.location.origin}/callback`,
+              });
+              if (error) {
+                setError(error.message);
+              } else {
+                setMessage("Check your email for a password reset link!");
+              }
+              setLoading(false);
+            }}
+            disabled={loading}
+            className="w-full text-sm text-gray-500 hover:text-brand-600"
+          >
+            Forgot password?
+          </button>
         </form>
       </div>
     </div>
