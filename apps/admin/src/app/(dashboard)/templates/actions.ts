@@ -1,6 +1,6 @@
 "use server";
 
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient, createSupabaseServiceClient } from "@/lib/supabase-server";
 import { getUserOrg } from "@leadrwizard/shared/tenant";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -10,12 +10,13 @@ async function getAuthedOrg() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
-  const orgData = await getUserOrg(supabase, user.id);
+  const serviceClient = createSupabaseServiceClient();
+  const orgData = await getUserOrg(serviceClient, user.id);
   if (!orgData || !["owner", "admin"].includes(orgData.role)) {
     throw new Error("Insufficient permissions");
   }
 
-  return { supabase, orgId: orgData.org.id };
+  return { supabase: serviceClient, orgId: orgData.org.id };
 }
 
 export async function createTemplate(formData: FormData) {

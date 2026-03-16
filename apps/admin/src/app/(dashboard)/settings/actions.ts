@@ -1,6 +1,6 @@
 "use server";
 
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient, createSupabaseServiceClient } from "@/lib/supabase-server";
 import { getUserOrg, updateOrgSettings } from "@leadrwizard/shared/tenant";
 import { encrypt } from "@leadrwizard/shared/crypto";
 import { revalidatePath } from "next/cache";
@@ -12,12 +12,13 @@ async function getAuthedOrg() {
   } = await supabase.auth.getUser();
   if (!user) return { error: "Unauthorized" };
 
-  const orgData = await getUserOrg(supabase, user.id);
+  const serviceClient = createSupabaseServiceClient();
+  const orgData = await getUserOrg(serviceClient, user.id);
   if (!orgData || !["owner", "admin"].includes(orgData.role)) {
     return { error: "Insufficient permissions" };
   }
 
-  return { supabase, orgId: orgData.org.id };
+  return { supabase: serviceClient, orgId: orgData.org.id };
 }
 
 export type ActionResult = {
@@ -35,7 +36,7 @@ export async function saveIntegrationCredentials(
 ): Promise<ActionResult> {
   const auth = await getAuthedOrg();
   if ("error" in auth && auth.error) return { success: false, error: auth.error };
-  const { supabase, orgId } = auth as { supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>; orgId: string };
+  const { supabase, orgId } = auth as { supabase: ReturnType<typeof createSupabaseServiceClient>; orgId: string };
 
   const integration = formData.get("integration") as string;
 
@@ -120,7 +121,7 @@ export async function saveEscalationConfig(
 ): Promise<ActionResult> {
   const auth = await getAuthedOrg();
   if ("error" in auth && auth.error) return { success: false, error: auth.error };
-  const { supabase, orgId } = auth as { supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>; orgId: string };
+  const { supabase, orgId } = auth as { supabase: ReturnType<typeof createSupabaseServiceClient>; orgId: string };
 
   try {
     const channel = (formData.get("escalation_channel") as string)?.trim() || null;
@@ -155,7 +156,7 @@ export async function provisionTwilioNumber(
 ): Promise<ActionResult> {
   const auth = await getAuthedOrg();
   if ("error" in auth && auth.error) return { success: false, error: auth.error };
-  const { supabase, orgId } = auth as { supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>; orgId: string };
+  const { supabase, orgId } = auth as { supabase: ReturnType<typeof createSupabaseServiceClient>; orgId: string };
 
   try {
     // Dynamic import to avoid pulling automations into admin bundle unnecessarily
