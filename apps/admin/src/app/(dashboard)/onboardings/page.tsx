@@ -1,12 +1,13 @@
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient, createSupabaseServiceClient } from "@/lib/supabase-server";
 import { getUserOrg } from "@leadrwizard/shared/tenant";
 import { RealtimeSessions } from "./realtime-sessions";
 
 export default async function OnboardingsPage() {
-  const supabase = await createSupabaseServerClient();
+  const authClient = await createSupabaseServerClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await authClient.auth.getUser();
+  const supabase = createSupabaseServiceClient();
   const orgData = user ? await getUserOrg(supabase, user.id) : null;
 
   const { data: sessions } = await supabase

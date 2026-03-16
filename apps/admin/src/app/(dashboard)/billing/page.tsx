@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient, createSupabaseServiceClient } from "@/lib/supabase-server";
 
 interface Plan {
   id: string;
@@ -21,11 +21,13 @@ interface Subscription {
 }
 
 export default async function BillingPage() {
-  const supabase = await createSupabaseServerClient();
+  const authClient = await createSupabaseServerClient();
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await authClient.auth.getUser();
+
+  const supabase = createSupabaseServiceClient();
 
   // Get user's org
   const { data: membership } = await supabase

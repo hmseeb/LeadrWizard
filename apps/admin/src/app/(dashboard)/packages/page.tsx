@@ -1,9 +1,9 @@
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import Link from "next/link";
 import { PackageActions } from "./package-actions";
 
 export default async function PackagesPage() {
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseServiceClient();
   const { data: packages } = await supabase
     .from("service_packages")
     .select(

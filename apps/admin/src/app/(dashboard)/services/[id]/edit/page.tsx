@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { notFound } from "next/navigation";
 import { ServiceForm } from "@/components/service-form";
 import { updateService } from "../../actions";
@@ -10,7 +10,7 @@ export default async function EditServicePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseServiceClient();
   const { data: service } = await supabase
     .from("service_definitions")
     .select("*")

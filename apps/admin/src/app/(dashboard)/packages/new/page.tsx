@@ -1,9 +1,9 @@
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { PackageForm } from "@/components/package-form";
 import { createPackage } from "../actions";
 
 export default async function NewPackagePage() {
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseServiceClient();
 
   // Fetch active services for the assignment checklist
   const { data: services } = await supabase

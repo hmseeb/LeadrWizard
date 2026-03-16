@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import Link from "next/link";
 import { MessageSquare, Mail, Phone } from "lucide-react";
 import { TemplateActions } from "./template-actions";
@@ -14,7 +14,7 @@ const channelConfig: Record<
 };
 
 export default async function TemplatesPage() {
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseServiceClient();
   const { data: templates } = await supabase
     .from("message_templates")
     .select("*")

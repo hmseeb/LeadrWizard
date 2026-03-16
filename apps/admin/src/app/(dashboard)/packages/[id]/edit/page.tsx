@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { notFound } from "next/navigation";
 import { PackageForm } from "@/components/package-form";
 import { updatePackage } from "../../actions";
@@ -9,7 +9,7 @@ export default async function EditPackagePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseServiceClient();
 
   // Fetch package and its current service assignments in parallel
   const [

@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient, createSupabaseServiceClient } from "@/lib/supabase-server";
 import { SetupWizard } from "./setup-wizard";
 import { getUserOrg } from "@leadrwizard/shared/tenant";
 import { RealtimeDashboard } from "./realtime-dashboard";
@@ -19,12 +19,14 @@ interface AnalyticsSnapshot {
 }
 
 export default async function DashboardPage() {
-  const supabase = await createSupabaseServerClient();
+  const authClient = await createSupabaseServerClient();
 
   // Detect org and empty state for setup wizard
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await authClient.auth.getUser();
+
+  const supabase = createSupabaseServiceClient();
 
   let showWizard = false;
   let orgName = "";

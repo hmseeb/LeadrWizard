@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { notFound } from "next/navigation";
 import { TemplateForm } from "@/components/template-form";
 import { updateTemplate } from "../../actions";
@@ -10,7 +10,7 @@ export default async function EditTemplatePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseServiceClient();
   const { data: template } = await supabase
     .from("message_templates")
     .select("*")
