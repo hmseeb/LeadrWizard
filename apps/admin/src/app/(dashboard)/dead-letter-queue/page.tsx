@@ -13,8 +13,18 @@ export default async function DeadLetterQueuePage() {
 
   if (!user) redirect("/login");
 
-  const orgData = await getUserOrg(supabase, user.id);
-  if (!orgData) redirect("/login");
+  const orgData = user ? await getUserOrg(supabase, user.id) : null;
+  if (!orgData) {
+    return (
+      <div>
+        <div className="flex items-center gap-3">
+          <AlertOctagon className="h-6 w-6 text-rose-400" />
+          <h1 className="font-display text-2xl font-bold tracking-tight text-zinc-50">Dead Letter Queue</h1>
+        </div>
+        <p className="mt-4 text-zinc-400">Unable to load organization data. Please try refreshing the page.</p>
+      </div>
+    );
+  }
 
   // Fetch active DLQ entries (not retried or dismissed)
   const { data: activeEntries } = await supabase

@@ -14,7 +14,14 @@ export default async function SettingsPage() {
   if (!user) redirect("/login");
 
   const orgData = user ? await getUserOrg(supabase, user.id) : null;
-  if (!orgData) redirect("/login");
+  if (!orgData) {
+    return (
+      <div>
+        <h1 className="font-display text-2xl font-bold tracking-tight text-zinc-50">Settings</h1>
+        <p className="mt-4 text-zinc-400">Unable to load organization settings. Please try refreshing the page.</p>
+      </div>
+    );
+  }
 
   // Fetch org with credential columns (only non-secret fields + existence checks)
   const { data: org } = await supabase
