@@ -13,7 +13,7 @@ export default async function SettingsPage() {
 
   if (!user) redirect("/login");
 
-  const orgData = await getUserOrg(supabase, user.id);
+  const orgData = user ? await getUserOrg(supabase, user.id) : null;
   if (!orgData) redirect("/login");
 
   // Fetch org with credential columns (only non-secret fields + existence checks)
