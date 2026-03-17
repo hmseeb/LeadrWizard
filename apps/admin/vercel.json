@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/outreach",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/cron/tasks",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}
