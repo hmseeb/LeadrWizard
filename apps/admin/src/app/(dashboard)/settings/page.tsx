@@ -21,7 +21,7 @@ export default async function SettingsPage() {
   const { data: org } = await serviceClient
     .from("organizations")
     .select(
-      "twilio_phone_number, twilio_account_sid_encrypted, ghl_api_key_encrypted, ghl_location_id, ghl_company_id, vapi_api_key_encrypted, vapi_assistant_id, elevenlabs_agent_id, settings"
+      "twilio_phone_number, twilio_account_sid_encrypted, ghl_api_key_encrypted, ghl_location_id, ghl_company_id, vapi_api_key_encrypted, vapi_assistant_id, elevenlabs_agent_id, google_client_id_encrypted, anthropic_api_key_encrypted, settings"
     )
     .eq("id", orgData.org.id)
     .single();
@@ -43,6 +43,8 @@ export default async function SettingsPage() {
     has_vapi_creds: !!(row.vapi_api_key_encrypted),
     vapi_assistant_id: (row.vapi_assistant_id as string) || null,
     elevenlabs_agent_id: (row.elevenlabs_agent_id as string) || null,
+    has_google_creds: !!(row.google_client_id_encrypted),
+    has_anthropic_creds: !!(row.anthropic_api_key_encrypted),
   };
 
   return (

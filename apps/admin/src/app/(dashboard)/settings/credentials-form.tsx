@@ -6,7 +6,7 @@ import {
   provisionTwilioNumber,
   type ActionResult,
 } from "./actions";
-import { Phone, Key, Bot, Mic } from "lucide-react";
+import { Phone, Key, Bot, Mic, Globe, Brain } from "lucide-react";
 
 interface IntegrationConfig {
   twilio_phone_number: string | null;
@@ -17,6 +17,8 @@ interface IntegrationConfig {
   has_vapi_creds: boolean;
   vapi_assistant_id: string | null;
   elevenlabs_agent_id: string | null;
+  has_google_creds: boolean;
+  has_anthropic_creds: boolean;
 }
 
 const initialState: ActionResult = { success: false };
@@ -131,6 +133,14 @@ export function CredentialsForm({ config }: { config: IntegrationConfig }) {
     initialState
   );
   const [elevenState, elevenAction, elevenPending] = useActionState(
+    saveIntegrationCredentials,
+    initialState
+  );
+  const [googleState, googleAction, googlePending] = useActionState(
+    saveIntegrationCredentials,
+    initialState
+  );
+  const [anthropicState, anthropicAction, anthropicPending] = useActionState(
     saveIntegrationCredentials,
     initialState
   );
@@ -295,6 +305,56 @@ export function CredentialsForm({ config }: { config: IntegrationConfig }) {
             required
           />
           <SaveButton state={elevenState} pending={elevenPending} />
+        </form>
+      </IntegrationCard>
+
+      {/* Google Business Profile */}
+      <IntegrationCard
+        name="Google Business Profile"
+        description="GMB access requests and management"
+        icon={Globe}
+        isConfigured={config.has_google_creds}
+      >
+        <form action={googleAction} className="space-y-3">
+          <input type="hidden" name="integration" value="google" />
+          <CredentialInput
+            name="google_client_id"
+            label="Client ID"
+            placeholder="Enter Google OAuth client ID"
+            required
+          />
+          <CredentialInput
+            name="google_client_secret"
+            label="Client Secret"
+            placeholder="Enter Google OAuth client secret"
+            required
+          />
+          <CredentialInput
+            name="google_refresh_token"
+            label="Refresh Token"
+            placeholder="Enter Google OAuth refresh token"
+            required
+          />
+          <SaveButton state={googleState} pending={googlePending} />
+        </form>
+      </IntegrationCard>
+
+      {/* Anthropic (AI) */}
+      <IntegrationCard
+        name="Anthropic (Claude AI)"
+        description="AI-powered website generation and content"
+        icon={Brain}
+        isConfigured={config.has_anthropic_creds}
+      >
+        <form action={anthropicAction} className="space-y-3">
+          <input type="hidden" name="integration" value="anthropic" />
+          <CredentialInput
+            name="anthropic_api_key"
+            label="API Key"
+            placeholder="Enter Anthropic API key"
+            required
+          />
+          <SaveButton state={anthropicState} pending={anthropicPending} />
         </form>
       </IntegrationCard>
     </div>

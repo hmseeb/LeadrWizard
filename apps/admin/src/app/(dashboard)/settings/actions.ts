@@ -27,7 +27,7 @@ export type ActionResult = {
 };
 
 /**
- * Save integration credentials (Twilio, GHL, Vapi, ElevenLabs).
+ * Save integration credentials (Twilio, GHL, Vapi, ElevenLabs, Google, Anthropic).
  * Encrypts secret values before storage. Non-secret config stored as plain text.
  */
 export async function saveIntegrationCredentials(
@@ -85,6 +85,28 @@ export async function saveIntegrationCredentials(
           return { success: false, error: "Agent ID is required" };
         }
         updates.elevenlabs_agent_id = agentId;
+        break;
+      }
+
+      case "google": {
+        const clientId = (formData.get("google_client_id") as string)?.trim();
+        const clientSecret = (formData.get("google_client_secret") as string)?.trim();
+        const refreshToken = (formData.get("google_refresh_token") as string)?.trim();
+        if (!clientId || !clientSecret || !refreshToken) {
+          return { success: false, error: "All Google OAuth fields are required" };
+        }
+        updates.google_client_id_encrypted = encrypt(clientId);
+        updates.google_client_secret_encrypted = encrypt(clientSecret);
+        updates.google_refresh_token_encrypted = encrypt(refreshToken);
+        break;
+      }
+
+      case "anthropic": {
+        const apiKey = (formData.get("anthropic_api_key") as string)?.trim();
+        if (!apiKey) {
+          return { success: false, error: "API Key is required" };
+        }
+        updates.anthropic_api_key_encrypted = encrypt(apiKey);
         break;
       }
 
