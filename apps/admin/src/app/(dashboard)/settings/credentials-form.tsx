@@ -237,25 +237,31 @@ export function CredentialsForm({ config }: { config: IntegrationConfig }) {
           <input type="hidden" name="integration" value="ghl" />
           <CredentialInput
             name="ghl_api_key"
-            label="API Key"
-            placeholder="Enter GHL API key"
+            label="Agency API Key"
+            placeholder="Enter GHL Agency API key"
             required
           />
+          <p className="text-xs text-zinc-500 -mt-1">
+            Found in Agency Settings → API Keys. Required for managing subaccounts and pushing phone numbers.
+          </p>
           <CredentialInput
             name="ghl_location_id"
-            label="Location ID"
+            label="Default Location ID"
             type="text"
-            placeholder="Enter location ID"
+            placeholder="Enter default location ID"
             defaultValue={config.ghl_location_id || ""}
-            required
           />
           <CredentialInput
             name="ghl_company_id"
-            label="Company ID (optional)"
+            label="Company ID"
             type="text"
-            placeholder="Enter company ID"
+            placeholder="Enter agency company ID"
             defaultValue={config.ghl_company_id || ""}
+            required
           />
+          <p className="text-xs text-zinc-500 -mt-1">
+            Found in Agency Settings → Company. Required for listing subaccounts.
+          </p>
           <SaveButton state={ghlState} pending={ghlPending} />
         </form>
       </IntegrationCard>
