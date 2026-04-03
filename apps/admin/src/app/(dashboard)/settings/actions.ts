@@ -59,11 +59,11 @@ export async function saveIntegrationCredentials(
         const apiKey = (formData.get("ghl_api_key") as string)?.trim();
         const locationId = (formData.get("ghl_location_id") as string)?.trim();
         const companyId = (formData.get("ghl_company_id") as string)?.trim();
-        if (!apiKey || !locationId) {
-          return { success: false, error: "API Key and Location ID are required" };
+        if (!apiKey) {
+          return { success: false, error: "Agency API Key is required" };
         }
         updates.ghl_api_key_encrypted = encrypt(apiKey);
-        updates.ghl_location_id = locationId;
+        updates.ghl_location_id = locationId || null;
         updates.ghl_company_id = companyId || null;
         break;
       }
