@@ -469,6 +469,9 @@ export async function checkA2PStatus(
           })
           .eq("id", task.client_service_id);
 
+        // Push verified phone number to GHL subaccount
+        await pushPhoneToGHL(supabase, task);
+
         return "completed";
       } else if (campaignStatus === "FAILED") {
         await supabase
@@ -516,4 +519,98 @@ export async function checkA2PStatus(
   }
 
   return task.status;
+}
+
+/**
+ * After A2P campaign is verified, push the Twilio phone number
+ * to the client's GHL subaccount so they can send SMS from GHL.
+ *
+ * GHL API: POST /locations/{locationId}/phone-numbers
+ * Docs: https://highlevel.stoplight.io/docs/integrations
+ */
+async function pushPhoneToGHL(
+  supabase: SupabaseClient,
+  task: ServiceTask
+): Promise<void> {
+  const lastResult = task.last_result as Record<string, unknown> | null;
+  if (!lastResult) return;
+
+  const config = getTwilioConfig();
+  const messagingServiceSid = lastResult.messaging_service_sid as string;
+
+  // Resolve client from service task → client_service → client
+  const { data: clientService } = await supabase
+    .from("client_services")
+    .select("client_id")
+    .eq("id", task.client_service_id)
+    .single();
+
+  if (!clientService) return;
+
+  const { data: client } = await supabase
+    .from("clients")
+    .select("id, ghl_sub_account_id, org_id")
+    .eq("id", (clientService as Record<string, string>).client_id)
+    .single();
+
+  if (!client) return;
+  const typedClient = client as { id: string; ghl_sub_account_id: string | null; org_id: string };
+
+  if (!typedClient.ghl_sub_account_id) return; // No GHL subaccount — skip
+
+  const ghlApiKey = process.env.GHL_API_KEY;
+  if (!ghlApiKey) return; // GHL not configured — skip silently
+
+  try {
+    // Add the Twilio phone number to the GHL subaccount
+    const response = await fetch(
+      `https://services.leadconnectorhq.com/phone-numbers/`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${ghlApiKey}`,
+          "Content-Type": "application/json",
+          Version: "2021-07-28",
+        },
+        body: JSON.stringify({
+          locationId: typedClient.ghl_sub_account_id,
+          name: `A2P Verified - ${config.phoneNumber}`,
+          number: config.phoneNumber,
+          twilioAccountSid: config.accountSid,
+          twilioAuthToken: config.authToken,
+          messagingServiceSid: messagingServiceSid || undefined,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      // Log but don't fail — A2P is still complete even if GHL push fails
+      await supabase.from("interaction_log").insert({
+        client_id: typedClient.id,
+        channel: "system",
+        direction: "outbound",
+        content_type: "system_event",
+        content: `Failed to push A2P phone number to GHL: ${errorBody}`,
+        metadata: { task_id: task.id, ghl_location: typedClient.ghl_sub_account_id },
+      });
+      return;
+    }
+
+    // Log success
+    await supabase.from("interaction_log").insert({
+      client_id: typedClient.id,
+      channel: "system",
+      direction: "outbound",
+      content_type: "system_event",
+      content: `A2P verified phone number ${config.phoneNumber} added to GHL subaccount`,
+      metadata: {
+        task_id: task.id,
+        ghl_location: typedClient.ghl_sub_account_id,
+        messaging_service_sid: messagingServiceSid,
+      },
+    });
+  } catch {
+    // Silent fail — don't break A2P completion over GHL issues
+  }
 }
