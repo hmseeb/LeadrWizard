@@ -17,10 +17,20 @@ export default async function ClientsPage() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-bold tracking-tight text-zinc-50">Clients</h1>
-      <p className="mt-1 text-sm text-zinc-400">
-        All clients across onboarding stages
-      </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-zinc-50">Clients</h1>
+          <p className="mt-1 text-sm text-zinc-400">
+            All clients across onboarding stages
+          </p>
+        </div>
+        <Link
+          href="/clients/new"
+          className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-500 transition-all shadow-sm"
+        >
+          + New Client
+        </Link>
+      </div>
 
       <div className="mt-6 rounded-xl border border-zinc-800 bg-surface overflow-hidden">
         <table className="w-full">
