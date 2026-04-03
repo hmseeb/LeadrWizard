@@ -1,12 +1,21 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useEffect } from "react";
 import Link from "next/link";
 
 interface PackageOption {
   id: string;
   name: string;
   description: string | null;
+}
+
+interface GHLLocation {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  city: string | null;
+  state: string | null;
 }
 
 interface NewClientFormProps {
@@ -92,6 +101,23 @@ export function NewClientForm({ packages, action }: NewClientFormProps) {
   const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
   const [step, setStep] = useState<Step>("form");
   const [formRef, setFormRef] = useState<HTMLFormElement | null>(null);
+  const [ghlLocations, setGhlLocations] = useState<GHLLocation[]>([]);
+  const [ghlLoading, setGhlLoading] = useState(true);
+  const [ghlError, setGhlError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/ghl/locations")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.error) {
+          setGhlError(data.error);
+        } else {
+          setGhlLocations(data.locations || []);
+        }
+      })
+      .catch(() => setGhlError("Failed to load GHL locations"))
+      .finally(() => setGhlLoading(false));
+  }, []);
 
   const [error, formAction, isPending] = useActionState(
     async (_prevState: string | null, formData: FormData) => {
@@ -273,9 +299,26 @@ export function NewClientForm({ packages, action }: NewClientFormProps) {
           {/* GHL Integration */}
           <div className="rounded-xl border border-zinc-800 bg-surface p-6">
             <h2 className="text-lg font-semibold text-zinc-50">6. Post-Approval: GHL Phone Push</h2>
-            <p className="mt-2 text-sm text-zinc-400">
-              After the campaign is verified, the Twilio phone number and messaging service will be automatically added to the client&apos;s GHL subaccount.
-            </p>
+            {(() => {
+              const selectedLocationId = getFormValue("ghl_location_id");
+              const selectedLocation = ghlLocations.find((l) => l.id === selectedLocationId);
+              if (selectedLocation) {
+                return (
+                  <div className="mt-3 space-y-2">
+                    <ReviewRow label="GHL Subaccount" value={selectedLocation.name} />
+                    <ReviewRow label="Location ID" value={selectedLocation.id} />
+                    <p className="mt-2 text-sm text-zinc-400">
+                      After campaign verification, the Twilio phone number + messaging service will be automatically pushed to this subaccount.
+                    </p>
+                  </div>
+                );
+              }
+              return (
+                <p className="mt-2 text-sm text-zinc-500">
+                  No GHL subaccount selected — phone number will not be auto-pushed. You can add it manually later.
+                </p>
+              );
+            })()}
           </div>
 
           {/* Actions */}
@@ -427,7 +470,37 @@ export function NewClientForm({ packages, action }: NewClientFormProps) {
           </p>
         </div>
 
-        {/* Section 5: Package Selection */}
+        {/* Section 5: GHL Subaccount */}
+        <div className="rounded-xl border border-zinc-800 bg-surface p-6">
+          <h2 className="text-lg font-semibold text-zinc-50">GHL Subaccount</h2>
+          <p className="mt-1 text-sm text-zinc-400">
+            Select the client&apos;s GoHighLevel subaccount. The verified Twilio number will be pushed here after A2P approval.
+          </p>
+          <div className="mt-4">
+            {ghlLoading ? (
+              <div className="text-sm text-zinc-500">Loading GHL locations...</div>
+            ) : ghlError ? (
+              <div className="rounded-lg border border-amber-500/20 bg-amber-600/10 p-3 text-sm text-amber-400">
+                {ghlError}. You can still submit — the phone number can be added to GHL manually later.
+              </div>
+            ) : ghlLocations.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-zinc-700 p-4 text-center text-sm text-zinc-500">
+                No GHL locations found. The phone number can be added manually after A2P approval.
+              </div>
+            ) : (
+              <select name="ghl_location_id" className={inputClass}>
+                <option value="">None — skip GHL push</option>
+                {ghlLocations.map((loc) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.name}{loc.city && loc.state ? ` (${loc.city}, ${loc.state})` : ""}{loc.phone ? ` — ${loc.phone}` : ""}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        </div>
+
+        {/* Section 6: Package Selection */}
         <div className="rounded-xl border border-zinc-800 bg-surface p-6">
           <h2 className="text-lg font-semibold text-zinc-50">Select Package</h2>
           <p className="mt-1 text-sm text-zinc-400">

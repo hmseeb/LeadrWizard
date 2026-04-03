@@ -38,6 +38,9 @@ export async function startManualOnboarding(formData: FormData) {
   const businessZip = formData.get("business_zip") as string;
   const businessPhone = formData.get("business_phone") as string;
 
+  // GHL location
+  const ghlLocationId = formData.get("ghl_location_id") as string;
+
   // Message types and samples
   const messageTypes = JSON.parse((formData.get("message_types") as string) || "[]") as string[];
   const sampleMessages = JSON.parse((formData.get("sample_messages") as string) || "[]") as string[];
@@ -109,7 +112,18 @@ export async function startManualOnboarding(formData: FormData) {
     idempotent: boolean;
   };
 
-  // 2. Find the A2P client_service to attach the task to
+  // 2. Link GHL subaccount if selected
+  if (ghlLocationId) {
+    await supabase
+      .from("clients")
+      .update({
+        ghl_sub_account_id: ghlLocationId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", result.client_id);
+  }
+
+  // 3. Find the A2P client_service to attach the task to
   const { data: clientServices } = await supabase
     .from("client_services")
     .select("id, service_id")
@@ -121,7 +135,7 @@ export async function startManualOnboarding(formData: FormData) {
 
   const clientServiceId = clientServices[0].id;
 
-  // 3. Submit A2P registration directly to Twilio (no client outreach)
+  // 4. Submit A2P registration directly to Twilio (no client outreach)
   await submitA2PRegistration(supabase, clientServiceId, {
     business_name: legalBusinessName.trim(),
     ein: ein.trim(),
@@ -136,7 +150,7 @@ export async function startManualOnboarding(formData: FormData) {
     sample_messages: sampleMessages,
   });
 
-  // 4. Mark the session as completed (no onboarding needed — we have all the data)
+  // 5. Mark the session as completed (no onboarding needed — we have all the data)
   await supabase
     .from("onboarding_sessions")
     .update({
@@ -146,7 +160,7 @@ export async function startManualOnboarding(formData: FormData) {
     })
     .eq("id", result.session_id);
 
-  // 5. Log the event
+  // 6. Log the event
   await supabase.from("interaction_log").insert({
     client_id: result.client_id,
     session_id: result.session_id,
