@@ -7,13 +7,16 @@ import type { SupabaseClient } from "../supabase/client";
  * Full A2P registration flow:
  * 1. Create Customer Profile (Trust Hub) — business identity verification
  * 2. Create A2P Brand — register the brand with The Campaign Registry (TCR)
- * 3. Create A2P Campaign — register the messaging use case
- * 4. Create Messaging Service — link the campaign to a phone number
+ * 3. Create Messaging Service — link a phone number for sending
+ * 4. Create A2P Campaign (Usa2p) — register the messaging use case
  *
  * Timeline: Brand registration takes 1-7 business days. Campaign takes 1-3 days.
- * Bot polls status and follows up with client if issues arise.
  *
- * Twilio API docs: https://www.twilio.com/docs/messaging/guides/a2p-10dlc
+ * Twilio API docs:
+ * - Trust Hub: https://www.twilio.com/docs/trust-hub/trusthub-rest-api
+ * - Brand Registration: https://www.twilio.com/docs/messaging/api/brand-registration-resource
+ * - Usa2p Campaign: https://www.twilio.com/docs/messaging/api/usapptoperson-resource
+ * - Messaging Services: https://www.twilio.com/docs/messaging/api/service-resource
  */
 
 export interface A2PRegistrationData {
@@ -50,29 +53,59 @@ function getTwilioConfig(): TwilioA2PConfig {
   return { accountSid, authToken, phoneNumber };
 }
 
+function getAuthHeader(): string {
+  const config = getTwilioConfig();
+  return `Basic ${Buffer.from(`${config.accountSid}:${config.authToken}`).toString("base64")}`;
+}
+
+/**
+ * Make a request to Twilio APIs.
+ * Supports Trust Hub, Messaging, and Core APIs.
+ * For array parameters (like MessageSamples), pass them as repeated keys in the body.
+ */
 async function twilioRequest(
   path: string,
   options: {
     method?: string;
-    body?: Record<string, string>;
-    isMessagingApi?: boolean;
+    body?: Record<string, string | string[]>;
+    api?: "trusthub" | "messaging" | "core";
   } = {}
 ): Promise<Record<string, unknown>> {
   const config = getTwilioConfig();
-  const baseUrl = options.isMessagingApi
-    ? "https://messaging.twilio.com/v1"
-    : `https://trusthub.twilio.com/v1`;
-  const auth = Buffer.from(`${config.accountSid}:${config.authToken}`).toString("base64");
+  const api = options.api || "trusthub";
+
+  let baseUrl: string;
+  switch (api) {
+    case "messaging":
+      baseUrl = "https://messaging.twilio.com/v1";
+      break;
+    case "core":
+      baseUrl = `https://api.twilio.com/2010-04-01/Accounts/${config.accountSid}`;
+      break;
+    default:
+      baseUrl = "https://trusthub.twilio.com/v1";
+  }
 
   const headers: Record<string, string> = {
-    Authorization: `Basic ${auth}`,
+    Authorization: getAuthHeader(),
   };
 
   let requestBody: string | undefined;
 
   if (options.body) {
     headers["Content-Type"] = "application/x-www-form-urlencoded";
-    requestBody = new URLSearchParams(options.body).toString();
+    // URLSearchParams handles repeated keys for array values
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(options.body)) {
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          params.append(key, item);
+        }
+      } else {
+        params.append(key, value);
+      }
+    }
+    requestBody = params.toString();
   }
 
   const response = await fetch(`${baseUrl}${path}`, {
@@ -83,23 +116,39 @@ async function twilioRequest(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`Twilio A2P API error (${response.status}): ${errorBody}`);
+    throw new Error(`Twilio API error (${response.status}): ${errorBody}`);
   }
 
   return (await response.json()) as Record<string, unknown>;
 }
 
 /**
+ * Look up the PhoneNumberSid (PN...) for an E.164 phone number.
+ * Twilio Messaging Service requires the SID, not the number.
+ */
+async function lookupPhoneNumberSid(phoneNumber: string): Promise<string> {
+  const result = await twilioRequest(
+    `/IncomingPhoneNumbers.json?PhoneNumber=${encodeURIComponent(phoneNumber)}`,
+    { api: "core" }
+  );
+
+  const numbers = result.incoming_phone_numbers as Array<{ sid: string }> | undefined;
+  if (!numbers || numbers.length === 0) {
+    throw new Error(`Phone number ${phoneNumber} not found in Twilio account`);
+  }
+
+  return numbers[0].sid;
+}
+
+/**
  * Submits an A2P 10DLC registration via Twilio API.
- * This is a multi-step process that creates a brand, campaign, and messaging service.
+ * Multi-step: Customer Profile → Brand Registration → (async approval) → Messaging Service → Campaign
  */
 export async function submitA2PRegistration(
   supabase: SupabaseClient,
   clientServiceId: string,
   data: A2PRegistrationData
 ): Promise<ServiceTask> {
-  const config = getTwilioConfig();
-
   // Create a service task to track the registration
   const { data: task, error } = await supabase
     .from("service_tasks")
@@ -126,8 +175,8 @@ export async function submitA2PRegistration(
       body: {
         FriendlyName: `${data.business_name} A2P Profile`,
         Email: data.contact_email,
-        PolicySid: "RN806dd6cd175f314e1f96a9727ee271f4", // A2P Starter Trust Bundle policy
-        StatusCallback: `${process.env.NEXT_PUBLIC_WIDGET_URL || ""}/api/webhooks/twilio-a2p`,
+        PolicySid: "RN806dd6cd175f314e1f96a9727ee271f4", // A2P Starter Trust Bundle policy (global)
+        StatusCallback: `${process.env.NEXT_PUBLIC_APP_URL || ""}/api/webhooks/twilio-a2p`,
       },
     });
 
@@ -139,7 +188,7 @@ export async function submitA2PRegistration(
       body: {
         FriendlyName: data.business_name,
         Type: "customer_profile_business_information",
-        "Attributes": JSON.stringify({
+        Attributes: JSON.stringify({
           business_name: data.business_name,
           business_identity: "direct_customer",
           business_type: "Sole Proprietorship",
@@ -161,13 +210,13 @@ export async function submitA2PRegistration(
       },
     });
 
-    // Add authorized rep
+    // Add authorized representative
     const authorizedRep = await twilioRequest("/EndUsers", {
       method: "POST",
       body: {
         FriendlyName: data.contact_name,
         Type: "authorized_representative_1",
-        "Attributes": JSON.stringify({
+        Attributes: JSON.stringify({
           first_name: data.contact_name.split(" ")[0],
           last_name: data.contact_name.split(" ").slice(1).join(" ") || data.contact_name,
           email: data.contact_email,
@@ -195,20 +244,20 @@ export async function submitA2PRegistration(
 
     // Step 2: Create A2P Brand Registration
     const brandRegistration = await twilioRequest(
-      `/a]2p/BrandRegistrations`,
+      "/a2p/BrandRegistrations",
       {
         method: "POST",
         body: {
           CustomerProfileBundleSid: customerProfileSid,
           A2PProfileBundleSid: customerProfileSid,
         },
-        isMessagingApi: true,
+        api: "messaging",
       }
     );
 
     const brandSid = brandRegistration.sid as string;
 
-    // Update task with brand registration info
+    // Update task with brand registration info — now wait for async approval
     await supabase
       .from("service_tasks")
       .update({
@@ -250,7 +299,7 @@ export async function submitA2PRegistration(
 
 /**
  * Checks the status of a pending A2P registration.
- * Handles the multi-step flow: brand → campaign → messaging service.
+ * Handles the multi-step flow: brand approval → messaging service + campaign → campaign approval
  */
 export async function checkA2PStatus(
   supabase: SupabaseClient,
@@ -269,66 +318,67 @@ export async function checkA2PStatus(
       if (!brandSid) return task.status;
 
       const brand = await twilioRequest(`/a2p/BrandRegistrations/${brandSid}`, {
-        isMessagingApi: true,
+        api: "messaging",
       });
 
       const brandStatus = brand.status as string;
 
       if (brandStatus === "APPROVED") {
-        // Brand approved — create campaign
         const data = lastResult.submitted_data as A2PRegistrationData;
 
-        // Create Messaging Service
-        const msgServiceResult = await twilioRequest("", {
+        // Step 3: Create Messaging Service
+        const msgServiceResult = await twilioRequest("/Services", {
           method: "POST",
           body: {
             FriendlyName: `${data.business_name} SMS`,
-            InboundRequestUrl: `${process.env.NEXT_PUBLIC_WIDGET_URL || ""}/api/webhooks/twilio`,
+            InboundRequestUrl: `${process.env.NEXT_PUBLIC_APP_URL || ""}/api/webhooks/twilio`,
             UseInboundWebhookOnNumber: "true",
           },
-          isMessagingApi: true,
+          api: "messaging",
         });
 
         const messagingServiceSid = (msgServiceResult as Record<string, string>).sid;
 
-        // Add phone number to messaging service
-        const accountSid = config.accountSid;
-        await fetch(
-          `https://messaging.twilio.com/v1/Services/${messagingServiceSid}/PhoneNumbers`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Basic ${Buffer.from(`${config.accountSid}:${config.authToken}`).toString("base64")}`,
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: new URLSearchParams({
-              PhoneNumberSid: config.phoneNumber, // This should be the SID, not the number
-            }).toString(),
-          }
-        );
+        // Look up the PhoneNumberSid from the E.164 number
+        const phoneNumberSid = await lookupPhoneNumberSid(config.phoneNumber);
 
-        // Create A2P Campaign
+        // Add phone number to messaging service
+        await twilioRequest(`/Services/${messagingServiceSid}/PhoneNumbers`, {
+          method: "POST",
+          body: {
+            PhoneNumberSid: phoneNumberSid,
+          },
+          api: "messaging",
+        });
+
+        // Step 4: Create A2P Campaign (Usa2p) — under the Messaging Service
+        const sampleMessages = data.sample_messages.length >= 2
+          ? data.sample_messages.slice(0, 5)
+          : [
+              `Hi! Welcome to ${data.business_name}. We'll send you updates about your service. Reply STOP to opt out, HELP for help. Msg & data rates may apply.`,
+              `Reminder from ${data.business_name}: you have an upcoming appointment. Reply C to confirm. Reply STOP to unsubscribe.`,
+            ];
+
         const campaign = await twilioRequest(
-          `/a2p/BrandRegistrations/${brandSid}/Campaigns`,
+          `/Services/${messagingServiceSid}/Compliance/Usa2p`,
           {
             method: "POST",
             body: {
+              BrandRegistrationSid: brandSid,
               Description: data.use_case_description,
-              MessageFlow: `Customer signs up for ${data.business_name} services. They receive onboarding messages to collect setup information, appointment reminders, and service updates.`,
-              MessagingServiceSid: messagingServiceSid,
-              UseCase: "MIXED",
+              MessageFlow: `Customers of ${data.business_name} opt in to receive messages when they provide their phone number during service signup or appointment booking. They can opt out at any time by replying STOP.`,
+              UsAppToPersonUsecase: "MIXED",
               HasEmbeddedLinks: "true",
               HasEmbeddedPhone: "false",
-              "MessageSamples": JSON.stringify(
-                data.sample_messages.length > 0
-                  ? data.sample_messages
-                  : [
-                      `Hi! Welcome to ${data.business_name}. Let's get your setup started: {{link}}`,
-                      `Your ${data.business_name} setup is almost complete. Just a few more items: {{link}}`,
-                    ]
-              ),
+              MessageSamples: sampleMessages,
+              OptInMessage: `You have opted in to receive messages from ${data.business_name}. Msg & data rates may apply. Msg frequency varies. Reply HELP for help, STOP to cancel.`,
+              OptOutMessage: `You have been unsubscribed from ${data.business_name} messages. No more messages will be sent. Reply START to re-subscribe.`,
+              HelpMessage: `For help with ${data.business_name} messaging, contact us at ${data.contact_email} or call ${data.business_phone}. Reply STOP to opt out.`,
+              OptInKeywords: ["START", "YES", "SUBSCRIBE"],
+              OptOutKeywords: ["STOP", "CANCEL", "UNSUBSCRIBE", "END", "QUIT"],
+              HelpKeywords: ["HELP", "INFO", "SUPPORT"],
             },
-            isMessagingApi: true,
+            api: "messaging",
           }
         );
 
@@ -344,6 +394,7 @@ export async function checkA2PStatus(
               campaign_sid: campaign.sid,
               campaign_status: campaign.status,
               messaging_service_sid: messagingServiceSid,
+              phone_number_sid: phoneNumberSid,
             },
             updated_at: new Date().toISOString(),
           })
@@ -381,14 +432,14 @@ export async function checkA2PStatus(
     }
 
     if (step === "campaign_registration") {
-      // Check campaign status
-      const brandSid = task.external_ref;
+      // Check campaign status via Messaging Service endpoint
       const campaignSid = lastResult.campaign_sid as string;
-      if (!brandSid || !campaignSid) return task.status;
+      const messagingServiceSid = lastResult.messaging_service_sid as string;
+      if (!campaignSid || !messagingServiceSid) return task.status;
 
       const campaign = await twilioRequest(
-        `/a2p/BrandRegistrations/${brandSid}/Campaigns/${campaignSid}`,
-        { isMessagingApi: true }
+        `/Services/${messagingServiceSid}/Compliance/Usa2p/${campaignSid}`,
+        { api: "messaging" }
       );
 
       const campaignStatus = campaign.status as string;
