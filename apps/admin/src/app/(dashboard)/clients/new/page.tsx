@@ -17,7 +17,7 @@ export default async function NewClientPage() {
         New Client
       </h1>
       <p className="mt-1 text-sm text-zinc-400">
-        Start an onboarding for a new client. They&apos;ll receive an SMS with a link to provide their details.
+        Register a client for A2P texting. Fill in their business details and select message types — the registration is submitted directly to Twilio on their behalf.
       </p>
 
       <div className="mt-6">
