@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { Copy, Check } from "lucide-react";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 
 interface Session {
@@ -25,6 +27,18 @@ interface Props {
   orgId: string;
 }
 
+function buildOnboardingUrl(sessionId: string): string {
+  const configured = process.env.NEXT_PUBLIC_WIDGET_URL;
+  if (configured) {
+    // Env var points at the hosted /onboard page (e.g. https://app.leadrwizard.com/onboard)
+    return `${configured}?session=${sessionId}`;
+  }
+  if (typeof window !== "undefined") {
+    return `${window.location.origin}/onboard?session=${sessionId}`;
+  }
+  return `/onboard?session=${sessionId}`;
+}
+
 export function RealtimeSessions({ initialSessions, orgId }: Props) {
   const sessions = useRealtimeTable<Session>({
     table: "onboarding_sessions",
@@ -32,6 +46,18 @@ export function RealtimeSessions({ initialSessions, orgId }: Props) {
     initialData: initialSessions,
     channelName: "sessions-realtime",
   });
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  async function handleCopy(sessionId: string) {
+    const url = buildOnboardingUrl(sessionId);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedId(sessionId);
+      setTimeout(() => setCopiedId((prev) => (prev === sessionId ? null : prev)), 1500);
+    } catch {
+      window.prompt("Copy this onboarding link:", url);
+    }
+  }
 
   const activeCount = sessions.filter((s) => s.status === "active").length;
   const completedCount = sessions.filter((s) => s.status === "completed").length;
@@ -75,6 +101,7 @@ export function RealtimeSessions({ initialSessions, orgId }: Props) {
               <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">Progress</th>
               <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">Channel</th>
               <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">Last Activity</th>
+              <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">Link</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-800/60">
@@ -129,11 +156,31 @@ export function RealtimeSessions({ initialSessions, orgId }: Props) {
                     ? new Date(session.last_interaction_at).toLocaleString()
                     : "\u2014"}
                 </td>
+                <td className="px-5 py-3.5 text-sm">
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(session.id)}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900/60 px-2.5 py-1 text-xs font-medium text-zinc-300 hover:border-brand-500/50 hover:text-brand-400"
+                    title="Copy onboarding link"
+                  >
+                    {copiedId === session.id ? (
+                      <>
+                        <Check className="h-3.5 w-3.5" />
+                        Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5" />
+                        Copy link
+                      </>
+                    )}
+                  </button>
+                </td>
               </tr>
             ))}
             {sessions.length === 0 && (
               <tr>
-                <td colSpan={6} className="py-8 text-center text-zinc-500">
+                <td colSpan={7} className="py-8 text-center text-zinc-500">
                   No onboarding sessions yet. They will appear here once clients
                   start paying.
                 </td>
