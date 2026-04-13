@@ -1,5 +1,6 @@
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { notFound } from "next/navigation";
+import { CopyOnboardingLink } from "./copy-onboarding-link";
 
 export default async function ClientDetailPage({
   params,
@@ -61,6 +62,13 @@ export default async function ClientDetailPage({
           </span>
         )}
       </div>
+
+      {/* Onboarding Link — show for any non-completed session so agency can manually share it */}
+      {sessions && sessions.length > 0 && sessions[0].status !== "completed" && (
+        <section className="mt-6">
+          <CopyOnboardingLink sessionId={sessions[0].id} />
+        </section>
+      )}
 
       {/* Services Status */}
       <section className="mt-8">

@@ -24,12 +24,20 @@ export default async function ClientsPage() {
             All clients across onboarding stages
           </p>
         </div>
-        <Link
-          href="/clients/new"
-          className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-500 transition-all shadow-sm"
-        >
-          + New Client
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/clients/new"
+            className="rounded-lg border border-zinc-700 bg-zinc-900/60 px-4 py-2.5 text-sm font-semibold text-zinc-200 hover:border-brand-500/40 hover:text-brand-300 transition-all"
+          >
+            A2P Registration
+          </Link>
+          <Link
+            href="/clients/provision"
+            className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-500 transition-all shadow-sm"
+          >
+            + New Client
+          </Link>
+        </div>
       </div>
 
       <div className="mt-6 rounded-xl border border-zinc-800 bg-surface overflow-hidden">

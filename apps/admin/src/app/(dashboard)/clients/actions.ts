@@ -6,6 +6,8 @@ import { submitA2PRegistration } from "@leadrwizard/shared/automations";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+const A2P_SERVICE_SLUG = "a2p-registration";
+
 async function getAuthedOrg() {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -123,20 +125,40 @@ export async function startManualOnboarding(formData: FormData) {
       .eq("id", result.client_id);
   }
 
-  // 3. Find the A2P client_service to attach the task to
+  // 3. Load client services joined with service definitions so we can tell
+  //    which rows are A2P and which are not.
   const { data: clientServices } = await supabase
     .from("client_services")
-    .select("id, service_id")
+    .select("id, service_id, service:service_definitions(slug)")
     .eq("client_id", result.client_id);
 
   if (!clientServices || clientServices.length === 0) {
     throw new Error("No services found for client");
   }
 
-  const clientServiceId = clientServices[0].id;
+  type ClientServiceRow = {
+    id: string;
+    service_id: string;
+    service: { slug: string } | null;
+  };
+  const typedServices = clientServices as unknown as ClientServiceRow[];
+  const a2pService = typedServices.find(
+    (cs) => cs.service?.slug === A2P_SERVICE_SLUG
+  );
+  const nonA2pServices = typedServices.filter(
+    (cs) => cs.service?.slug !== A2P_SERVICE_SLUG
+  );
 
-  // 4. Submit A2P registration directly to Twilio (no client outreach)
-  await submitA2PRegistration(supabase, clientServiceId, {
+  if (!a2pService) {
+    // The form was submitted for a package that does not actually contain A2P.
+    // This is a misconfiguration; fail loudly rather than silently skipping.
+    throw new Error(
+      "Selected package does not contain the A2P service. Add it to the package or use the standard client flow."
+    );
+  }
+
+  // 4. Submit A2P registration directly to Twilio (no client outreach for A2P).
+  await submitA2PRegistration(supabase, a2pService.id, {
     business_name: legalBusinessName.trim(),
     ein: ein.trim(),
     business_address: businessAddress.trim(),
@@ -150,29 +172,168 @@ export async function startManualOnboarding(formData: FormData) {
     sample_messages: sampleMessages,
   });
 
-  // 5. Mark the session as completed (no onboarding needed — we have all the data)
-  await supabase
-    .from("onboarding_sessions")
-    .update({
-      status: "completed",
-      completion_pct: 100,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", result.session_id);
+  // 5. Pre-fill session_responses for the A2P service so the widget does not
+  //    re-ask these questions if this package also contains non-A2P services.
+  const a2pResponses: Array<{
+    session_id: string;
+    client_service_id: string;
+    field_key: string;
+    field_value: string;
+    answered_via: string;
+  }> = [
+    { field_key: "legal_business_name", field_value: legalBusinessName.trim() },
+    { field_key: "ein", field_value: ein.trim() },
+    { field_key: "business_address", field_value: businessAddress.trim() },
+    { field_key: "business_city", field_value: businessCity.trim() },
+    { field_key: "business_state", field_value: businessState.trim() },
+    { field_key: "business_zip", field_value: businessZip.trim() },
+    { field_key: "business_phone", field_value: businessPhone.trim() },
+    { field_key: "contact_name", field_value: name.trim() },
+    { field_key: "contact_email", field_value: email.trim() },
+  ].map((f) => ({
+    session_id: result.session_id,
+    client_service_id: a2pService.id,
+    field_key: f.field_key,
+    field_value: f.field_value,
+    answered_via: "click",
+  }));
+  await supabase.from("session_responses").insert(a2pResponses);
 
-  // 6. Log the event
+  // 6. Branch on package shape:
+  //    - A2P-only package → session is complete, agency has everything.
+  //    - Multi-service package → leave session active and queue the onboarding
+  //      outreach so the client fills in the remaining services via the widget.
+  if (nonA2pServices.length === 0) {
+    await supabase
+      .from("onboarding_sessions")
+      .update({
+        status: "completed",
+        completion_pct: 100,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", result.session_id);
+  } else {
+    await supabase.from("outreach_queue").insert({
+      client_id: result.client_id,
+      session_id: result.session_id,
+      channel: "sms",
+      message_template: "welcome_sms",
+      message_params: {
+        name: name.trim(),
+        business: legalBusinessName.trim(),
+        link: `{{WIDGET_URL}}?session=${result.session_id}`,
+      },
+      scheduled_at: new Date().toISOString(),
+      status: "pending",
+      attempt_count: 0,
+      priority: "normal",
+      escalation_level: 1,
+    });
+  }
+
+  // 7. Log the event.
   await supabase.from("interaction_log").insert({
     client_id: result.client_id,
     session_id: result.session_id,
     channel: "system",
     direction: "outbound",
     content_type: "system_event",
-    content: `A2P registration submitted by agency. Message types: ${selectedLabels.join(", ")}`,
-    metadata: { message_types: messageTypes, source: "manual_a2p" },
+    content:
+      nonA2pServices.length === 0
+        ? `A2P registration submitted by agency. Message types: ${selectedLabels.join(", ")}`
+        : `A2P registration submitted by agency (${selectedLabels.join(", ")}). Onboarding queued for ${nonA2pServices.length} additional service(s).`,
+    metadata: {
+      message_types: messageTypes,
+      source: "manual_a2p",
+      non_a2p_services: nonA2pServices.length,
+    },
   });
 
   revalidatePath("/clients");
   revalidatePath("/onboardings");
   revalidatePath("/dashboard");
-  redirect("/clients");
+  redirect(`/clients/${result.client_id}`);
+}
+
+/**
+ * Lightweight "create client without payment" flow.
+ * Provisions the client + services + session, then queues the welcome outreach
+ * so the client receives the onboarding link — identical to what the payment
+ * webhook does, just triggered manually from the admin UI.
+ *
+ * Use this for comped accounts, out-of-band payments, demos, or internal testing.
+ */
+export async function startClientProvision(formData: FormData) {
+  const { supabase, orgId } = await getAuthedOrg();
+
+  const name = (formData.get("customer_name") as string | null)?.trim() ?? "";
+  const email = (formData.get("customer_email") as string | null)?.trim() ?? "";
+  const phone = (formData.get("customer_phone") as string | null)?.trim() ?? "";
+  const businessName = (formData.get("business_name") as string | null)?.trim() ?? "";
+  const packageId = (formData.get("package_id") as string | null) ?? "";
+
+  if (!name || name.length < 2) throw new Error("Client name is required");
+  if (!email || !email.includes("@")) throw new Error("Valid email is required");
+  if (!packageId) throw new Error("Please select a package");
+
+  const paymentRef = `provision_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+  const { data: provisionResult, error: provisionError } = await supabase.rpc(
+    "provision_client",
+    {
+      p_org_id: orgId,
+      p_name: name,
+      p_email: email,
+      p_phone: phone || null,
+      p_business_name: businessName || null,
+      p_payment_ref: paymentRef,
+      p_package_id: packageId,
+      p_metadata: { source: "manual_provision" },
+    }
+  );
+
+  if (provisionError) {
+    throw new Error(`Failed to create client: ${provisionError.message}`);
+  }
+
+  const result = provisionResult as {
+    client_id: string;
+    package_id: string;
+    session_id: string;
+    idempotent: boolean;
+  };
+
+  // Queue the welcome SMS so the client gets the onboarding link, matching
+  // what handlePaymentWebhook does after a real payment.
+  await supabase.from("outreach_queue").insert({
+    client_id: result.client_id,
+    session_id: result.session_id,
+    channel: "sms",
+    message_template: "welcome_sms",
+    message_params: {
+      name,
+      business: businessName,
+      link: `{{WIDGET_URL}}?session=${result.session_id}`,
+    },
+    scheduled_at: new Date().toISOString(),
+    status: "pending",
+    attempt_count: 0,
+    priority: "normal",
+    escalation_level: 1,
+  });
+
+  await supabase.from("interaction_log").insert({
+    client_id: result.client_id,
+    session_id: result.session_id,
+    channel: "system",
+    direction: "outbound",
+    content_type: "system_event",
+    content: "Client provisioned manually by agency (no payment webhook).",
+    metadata: { source: "manual_provision", package_id: packageId },
+  });
+
+  revalidatePath("/clients");
+  revalidatePath("/onboardings");
+  revalidatePath("/dashboard");
+  redirect(`/clients/${result.client_id}`);
 }
