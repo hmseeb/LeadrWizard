@@ -373,6 +373,9 @@ export interface OrgCredentials {
     token: string;
     teamId?: string;
   };
+  anthropic?: {
+    apiKey: string;
+  };
   linked2checkout?: {
     apiKey: string;
     webhookSecret: string;

@@ -281,7 +281,7 @@ export async function getOrgCredentials(
   const { data: org, error } = await supabase
     .from("organizations")
     .select(
-      "twilio_account_sid_encrypted, twilio_auth_token_encrypted, twilio_phone_number, ghl_api_key_encrypted, ghl_location_id, ghl_company_id, ghl_snapshot_id, vapi_api_key_encrypted, vapi_assistant_id, elevenlabs_agent_id, vercel_token_encrypted, vercel_team_id, linked2checkout_api_key_encrypted, linked2checkout_webhook_secret_encrypted, linked2checkout_merchant_id, linked2checkout_product_id_ignite"
+      "twilio_account_sid_encrypted, twilio_auth_token_encrypted, twilio_phone_number, ghl_api_key_encrypted, ghl_location_id, ghl_company_id, ghl_snapshot_id, vapi_api_key_encrypted, vapi_assistant_id, elevenlabs_agent_id, vercel_token_encrypted, vercel_team_id, anthropic_api_key_encrypted, linked2checkout_api_key_encrypted, linked2checkout_webhook_secret_encrypted, linked2checkout_merchant_id, linked2checkout_product_id_ignite"
     )
     .eq("id", orgId)
     .single();
@@ -332,6 +332,15 @@ export async function getOrgCredentials(
     creds.vercel = {
       token: decrypt(row.vercel_token_encrypted),
       teamId: row.vercel_team_id || undefined,
+    };
+  }
+
+  // Anthropic: API key only. Used by the AI website builder and any future
+  // LLM-backed automations. Stored per-org so we aren't forced to ship a
+  // single shared platform key.
+  if (row.anthropic_api_key_encrypted) {
+    creds.anthropic = {
+      apiKey: decrypt(row.anthropic_api_key_encrypted),
     };
   }
 
