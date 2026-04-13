@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { CopyOnboardingLink } from "./copy-onboarding-link";
 import { GhlSubaccountPanel } from "./ghl-subaccount-panel";
 import { MarkDeliveredButton } from "./mark-delivered-button";
+import { StartWebsiteBuildButton } from "./start-website-build-button";
 
 function serviceStatusBadgeClass(status: string, optedOut: boolean): string {
   if (optedOut) return "bg-gray-100 text-gray-500";
@@ -122,6 +123,13 @@ export default async function ClientDetailPage({
               !cs.opted_out &&
               cs.status !== "delivered" &&
               (cs.status === "ready_to_deliver" || cs.status === "in_progress");
+            // Show the "Start website build" button only for the website-build
+            // service and only when the onboarding data has been collected
+            // (ready_to_deliver). Mark Delivered is always the manual fallback.
+            const canStartWebsiteBuild =
+              !cs.opted_out &&
+              service?.slug === "website-build" &&
+              cs.status === "ready_to_deliver";
             return (
               <div key={cs.id} className="rounded-lg border bg-white p-4">
                 <div className="flex items-center justify-between gap-3">
@@ -134,12 +142,20 @@ export default async function ClientDetailPage({
                     {serviceStatusLabel(cs.status, cs.opted_out)}
                   </span>
                 </div>
-                {canMarkDelivered && (
-                  <div className="mt-3 flex justify-end">
-                    <MarkDeliveredButton
-                      clientId={id}
-                      clientServiceId={cs.id}
-                    />
+                {(canStartWebsiteBuild || canMarkDelivered) && (
+                  <div className="mt-3 flex items-start justify-end gap-3">
+                    {canStartWebsiteBuild && (
+                      <StartWebsiteBuildButton
+                        clientId={id}
+                        clientServiceId={cs.id}
+                      />
+                    )}
+                    {canMarkDelivered && (
+                      <MarkDeliveredButton
+                        clientId={id}
+                        clientServiceId={cs.id}
+                      />
+                    )}
                   </div>
                 )}
               </div>
