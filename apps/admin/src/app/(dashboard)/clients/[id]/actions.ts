@@ -225,7 +225,11 @@ export async function markClientServiceDelivered(
 export async function startWebsiteBuild(
   clientId: string,
   clientServiceId: string
-): Promise<{ previewUrl: string | null; needsTemplate: boolean }> {
+): Promise<
+  | { ok: true; previewUrl: string | null; needsTemplate: boolean }
+  | { ok: false; error: string }
+> {
+  try {
   const { supabase, orgId } = await getAuthedOrg();
 
   // --- 1. Scope + state check on the client_service row ---
@@ -378,5 +382,18 @@ export async function startWebsiteBuild(
   });
 
   revalidatePath(`/clients/${clientId}`);
-  return { previewUrl, needsTemplate };
+  return { ok: true, previewUrl, needsTemplate };
+  } catch (err) {
+    // Log the real error server-side so it shows up in Vercel logs, and
+    // return a structured error so the specific message actually reaches
+    // the browser. Next.js scrubs thrown errors from server actions in
+    // production to prevent info leaks — returning the message as data
+    // bypasses that and lets the UI surface the real failure reason.
+    console.error("[startWebsiteBuild] failed:", err);
+    return {
+      ok: false,
+      error:
+        err instanceof Error ? err.message : "Unknown error starting website build",
+    };
+  }
 }
