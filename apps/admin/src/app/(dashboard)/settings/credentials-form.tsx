@@ -269,12 +269,13 @@ export function CredentialsForm({ config }: { config: IntegrationConfig }) {
             name="ghl_company_id"
             label="Company ID"
             type="text"
-            placeholder="Enter agency company ID"
+            placeholder="Enter agency company ID (optional)"
             defaultValue={config.ghl_company_id || ""}
-            required
           />
           <p className="text-xs text-zinc-500 -mt-1">
-            Found in Agency Settings → Company. Required for listing subaccounts.
+            Found in Agency Settings → Company. Optional — only needed if you
+            want the &quot;Link GHL Subaccount&quot; flow to list locations
+            under a specific agency scope.
           </p>
           <CredentialInput
             name="ghl_snapshot_id"
