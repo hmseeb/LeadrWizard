@@ -6,20 +6,20 @@ import { MarkDeliveredButton } from "./mark-delivered-button";
 import { StartWebsiteBuildButton } from "./start-website-build-button";
 
 function serviceStatusBadgeClass(status: string, optedOut: boolean): string {
-  if (optedOut) return "bg-gray-100 text-gray-500";
+  if (optedOut) return "bg-zinc-800/80 text-zinc-400 border border-zinc-700";
   switch (status) {
     case "delivered":
-      return "bg-green-100 text-green-700";
+      return "bg-green-900/40 text-green-300 border border-green-800/60";
     case "ready_to_deliver":
-      return "bg-emerald-100 text-emerald-700";
+      return "bg-emerald-900/40 text-emerald-300 border border-emerald-800/60";
     case "in_progress":
-      return "bg-blue-100 text-blue-700";
+      return "bg-blue-900/40 text-blue-300 border border-blue-800/60";
     case "pending_onboarding":
-      return "bg-yellow-100 text-yellow-700";
+      return "bg-amber-900/40 text-amber-300 border border-amber-800/60";
     case "paused":
-      return "bg-gray-100 text-gray-600";
+      return "bg-zinc-800/80 text-zinc-400 border border-zinc-700";
     default:
-      return "bg-blue-100 text-blue-700";
+      return "bg-blue-900/40 text-blue-300 border border-blue-800/60";
   }
 }
 
@@ -83,16 +83,26 @@ export default async function ClientDetailPage({
 
   return (
     <div>
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{client.name}</h1>
-          <p className="mt-1 text-gray-500">
-            {client.business_name || "No business name"} — {client.email}
-            {client.phone && ` — ${client.phone}`}
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="font-display text-2xl font-bold tracking-tight text-zinc-50">
+            {client.name}
+          </h1>
+          <p className="mt-1 text-sm text-zinc-400">
+            {client.business_name || "No business name"}
+            <span className="mx-2 text-zinc-600">·</span>
+            <span className="text-zinc-300">{client.email}</span>
+            {client.phone && (
+              <>
+                <span className="mx-2 text-zinc-600">·</span>
+                <span className="text-zinc-300">{client.phone}</span>
+              </>
+            )}
           </p>
         </div>
         {client.ghl_sub_account_id && (
-          <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-800/60 bg-emerald-900/40 px-3 py-1 text-xs font-medium text-emerald-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
             GHL Active
           </span>
         )}
@@ -115,7 +125,9 @@ export default async function ClientDetailPage({
 
       {/* Services Status */}
       <section className="mt-8">
-        <h2 className="text-lg font-semibold">Services</h2>
+        <h2 className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+          Services
+        </h2>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           {services?.map((cs) => {
             const service = cs.service as { name: string; slug: string } | null;
@@ -134,13 +146,16 @@ export default async function ClientDetailPage({
               service?.slug === "website-build" &&
               cs.status !== "delivered";
             return (
-              <div key={cs.id} className="rounded-lg border bg-white p-4">
+              <div
+                key={cs.id}
+                className="rounded-xl border border-zinc-800 bg-surface p-4"
+              >
                 <div className="flex items-center justify-between gap-3">
-                  <span className="font-medium">
+                  <span className="font-medium text-zinc-100">
                     {service?.name || "Unknown"}
                   </span>
                   <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${serviceStatusBadgeClass(cs.status, cs.opted_out)}`}
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${serviceStatusBadgeClass(cs.status, cs.opted_out)}`}
                   >
                     {serviceStatusLabel(cs.status, cs.opted_out)}
                   </span>
@@ -164,40 +179,43 @@ export default async function ClientDetailPage({
               </div>
             );
           })}
+          {(!services || services.length === 0) && (
+            <p className="text-sm text-zinc-500">No services assigned.</p>
+          )}
         </div>
       </section>
 
       {/* Interaction Timeline */}
       <section className="mt-8">
-        <h2 className="text-lg font-semibold">
+        <h2 className="text-xs font-medium uppercase tracking-wider text-zinc-500">
           Interaction History ({interactions?.length || 0})
         </h2>
         <div className="mt-3 space-y-2">
           {interactions?.map((log) => (
             <div
               key={log.id}
-              className="flex items-start gap-3 rounded border bg-white p-3 text-sm"
+              className="flex items-start gap-3 rounded-lg border border-zinc-800 bg-surface p-3 text-sm"
             >
               <span
-                className={`mt-0.5 rounded px-1.5 py-0.5 text-xs font-medium ${
+                className={`mt-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider ${
                   log.direction === "inbound"
-                    ? "bg-blue-100 text-blue-700"
-                    : "bg-gray-100 text-gray-600"
+                    ? "bg-blue-900/40 text-blue-300 border border-blue-800/60"
+                    : "bg-zinc-800/80 text-zinc-400 border border-zinc-700"
                 }`}
               >
                 {log.direction === "inbound" ? "IN" : "OUT"}
               </span>
-              <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">
+              <span className="rounded bg-zinc-800/80 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-zinc-400 border border-zinc-700">
                 {log.channel}
               </span>
-              <span className="flex-1">{log.content}</span>
-              <span className="text-xs text-gray-400">
+              <span className="flex-1 text-zinc-200">{log.content}</span>
+              <span className="shrink-0 text-xs text-zinc-500">
                 {new Date(log.created_at).toLocaleString()}
               </span>
             </div>
           ))}
           {(!interactions || interactions.length === 0) && (
-            <p className="text-sm text-gray-400">No interactions recorded yet.</p>
+            <p className="text-sm text-zinc-500">No interactions recorded yet.</p>
           )}
         </div>
       </section>
@@ -205,26 +223,28 @@ export default async function ClientDetailPage({
       {/* Escalations */}
       {escalations && escalations.length > 0 && (
         <section className="mt-8">
-          <h2 className="text-lg font-semibold">Escalations</h2>
+          <h2 className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+            Escalations
+          </h2>
           <div className="mt-3 space-y-2">
             {escalations.map((esc) => (
               <div
                 key={esc.id}
-                className="rounded border border-yellow-200 bg-yellow-50 p-3 text-sm"
+                className="rounded-lg border border-amber-900/50 bg-amber-950/20 p-3 text-sm"
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">{esc.reason}</span>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-medium text-zinc-100">{esc.reason}</span>
                   <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${
                       esc.status === "resolved"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-yellow-100 text-yellow-700"
+                        ? "bg-green-900/40 text-green-300 border border-green-800/60"
+                        : "bg-amber-900/40 text-amber-300 border border-amber-800/60"
                     }`}
                   >
                     {esc.status}
                   </span>
                 </div>
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-zinc-500">
                   {new Date(esc.created_at).toLocaleString()}
                   {esc.assigned_to && ` — Assigned to: ${esc.assigned_to}`}
                 </p>
