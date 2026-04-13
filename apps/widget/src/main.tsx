@@ -1,7 +1,10 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { WizardWidget } from "./components/WizardWidget";
-import "./styles/widget.css";
+// Import widget.css as a raw string so we can inject it into the Shadow DOM.
+// Without `?inline` the styles would be added to document.head, which cannot
+// penetrate shadow roots — leaving the widget completely unstyled.
+import widgetCss from "./styles/widget.css?inline";
 
 export interface LeadrWizardConfig {
   sessionId: string;
@@ -88,10 +91,15 @@ function init(config: LeadrWizardConfig) {
   mountPoint.id = "leadrwizard-root";
   shadowRoot.appendChild(mountPoint);
 
-  // Inject styles into shadow DOM
-  const style = document.createElement("style");
-  style.textContent = getWidgetStyles(config.theme);
-  shadowRoot.appendChild(style);
+  // Inject styles into shadow DOM. Order matters: theme vars first so the
+  // widget.css rules can reference them via var(--lw-*) fallbacks.
+  const themeStyle = document.createElement("style");
+  themeStyle.textContent = getWidgetStyles(config.theme);
+  shadowRoot.appendChild(themeStyle);
+
+  const widgetStyle = document.createElement("style");
+  widgetStyle.textContent = widgetCss;
+  shadowRoot.appendChild(widgetStyle);
 
   const root = createRoot(mountPoint);
   root.render(
