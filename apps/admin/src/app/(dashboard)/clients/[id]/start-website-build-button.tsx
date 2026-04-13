@@ -35,6 +35,13 @@ export function StartWebsiteBuildButton({
     startTransition(async () => {
       try {
         const result = await startWebsiteBuild(clientId, clientServiceId);
+        if (!result.ok) {
+          // Server action caught the error internally and returned the real
+          // message as data (see actions.ts). Next.js won't scrub this the
+          // way it scrubs thrown errors in production builds.
+          setError(result.error);
+          return;
+        }
         setPreviewUrl(result.previewUrl);
         setNeedsTemplate(result.needsTemplate);
       } catch (err) {
