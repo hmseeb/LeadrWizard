@@ -19,6 +19,17 @@ async function getAuthedOrg() {
   return { supabase: serviceClient, orgId: orgData.org.id };
 }
 
+const VALID_PRICE_INTERVALS = ["one_time", "monthly", "yearly"] as const;
+type ValidPriceInterval = (typeof VALID_PRICE_INTERVALS)[number];
+
+function parsePriceInterval(value: FormDataEntryValue | null): ValidPriceInterval {
+  const raw = (value as string)?.trim() || "one_time";
+  if (!VALID_PRICE_INTERVALS.includes(raw as ValidPriceInterval)) {
+    throw new Error("Billing interval must be one-time, monthly, or yearly");
+  }
+  return raw as ValidPriceInterval;
+}
+
 export async function createPackage(formData: FormData) {
   const { supabase, orgId } = await getAuthedOrg();
 
@@ -33,6 +44,8 @@ export async function createPackage(formData: FormData) {
     throw new Error("Price must be a positive number");
   }
 
+  const priceInterval = parsePriceInterval(formData.get("price_interval"));
+
   // 1. Insert the package
   const { data: pkg, error: pkgError } = await supabase
     .from("service_packages")
@@ -41,6 +54,7 @@ export async function createPackage(formData: FormData) {
       name: name.trim(),
       description: (formData.get("description") as string)?.trim() || null,
       price_cents: priceCents,
+      price_interval: priceInterval,
     })
     .select("id")
     .single();
@@ -83,6 +97,8 @@ export async function updatePackage(packageId: string, formData: FormData) {
     throw new Error("Price must be a positive number");
   }
 
+  const priceInterval = parsePriceInterval(formData.get("price_interval"));
+
   // 1. Update the package
   const { error: pkgError } = await supabase
     .from("service_packages")
@@ -90,6 +106,7 @@ export async function updatePackage(packageId: string, formData: FormData) {
       name: name.trim(),
       description: (formData.get("description") as string)?.trim() || null,
       price_cents: priceCents,
+      price_interval: priceInterval,
       updated_at: new Date().toISOString(),
     })
     .eq("id", packageId);

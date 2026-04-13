@@ -54,6 +54,9 @@ export default async function EditPackagePage({
             name: pkg.name as string,
             description: pkg.description as string | null,
             price_cents: pkg.price_cents as number | null,
+            price_interval:
+              (pkg.price_interval as "one_time" | "monthly" | "yearly") ||
+              "one_time",
           }}
           initialServiceIds={currentServiceIds}
           availableServices={services || []}

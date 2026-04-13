@@ -9,12 +9,15 @@ interface ServiceOption {
   slug: string;
 }
 
+type PriceInterval = "one_time" | "monthly" | "yearly";
+
 interface PackageFormProps {
   mode: "create" | "edit";
   initialData?: {
     name: string;
     description: string | null;
     price_cents: number | null;
+    price_interval?: PriceInterval;
   };
   initialServiceIds?: string[];
   availableServices: ServiceOption[];
@@ -131,6 +134,24 @@ export function PackageForm({
                   defaultValue={initialData?.price_cents?.toString() || ""}
                 />
               </div>
+            </div>
+            <div>
+              <label
+                htmlFor="price_interval"
+                className="block text-sm font-medium text-zinc-300 mb-1.5"
+              >
+                Billing Interval
+              </label>
+              <select
+                id="price_interval"
+                name="price_interval"
+                defaultValue={initialData?.price_interval || "one_time"}
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2.5 text-sm text-zinc-100 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500/30 transition-colors"
+              >
+                <option value="one_time">One-time</option>
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
+              </select>
             </div>
             <div className="sm:col-span-2">
               <label
