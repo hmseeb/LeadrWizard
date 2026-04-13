@@ -6,7 +6,17 @@ import {
   provisionTwilioNumber,
   type ActionResult,
 } from "./actions";
-import { Phone, Key, Bot, Mic, Globe, Brain, Rocket, CreditCard } from "lucide-react";
+import {
+  Phone,
+  Key,
+  Bot,
+  Mic,
+  Globe,
+  Brain,
+  Rocket,
+  CreditCard,
+  Feather,
+} from "lucide-react";
 
 interface IntegrationConfig {
   twilio_phone_number: string | null;
@@ -22,6 +32,8 @@ interface IntegrationConfig {
   has_anthropic_creds: boolean;
   has_vercel_creds: boolean;
   vercel_team_id: string | null;
+  has_goosekit_creds: boolean;
+  goosekit_base_url: string | null;
   has_linked2checkout_creds: boolean;
   linked2checkout_merchant_id: string | null;
   linked2checkout_product_id_ignite: string | null;
@@ -151,6 +163,10 @@ export function CredentialsForm({ config }: { config: IntegrationConfig }) {
     initialState
   );
   const [vercelState, vercelAction, vercelPending] = useActionState(
+    saveIntegrationCredentials,
+    initialState
+  );
+  const [gooseState, gooseAction, goosePending] = useActionState(
     saveIntegrationCredentials,
     initialState
   );
@@ -417,6 +433,61 @@ export function CredentialsForm({ config }: { config: IntegrationConfig }) {
             defaultValue={config.vercel_team_id || ""}
           />
           <SaveButton state={vercelState} pending={vercelPending} />
+        </form>
+      </IntegrationCard>
+
+      {/* Goose Kit Website Builder */}
+      <IntegrationCard
+        name="Goose Kit Website Builder"
+        description="Alternative AI website builder (Railway-hosted) that can be chosen per client on the client detail page"
+        icon={Feather}
+        isConfigured={config.has_goosekit_creds}
+      >
+        <form action={gooseAction} className="space-y-3">
+          <input type="hidden" name="integration" value="goosekit" />
+          <CredentialInput
+            name="goosekit_github_pat"
+            label="GitHub PAT"
+            placeholder="ghp_..."
+            required
+          />
+          <p className="text-xs text-zinc-500 -mt-1">
+            GitHub personal access token Goose Kit uses to push the generated
+            site source to a repo.
+          </p>
+          <CredentialInput
+            name="goosekit_vercel_token"
+            label="Vercel Token"
+            placeholder="Enter Vercel token for Goose Kit"
+            required
+          />
+          <p className="text-xs text-zinc-500 -mt-1">
+            Vercel token Goose Kit uses to deploy the generated site. Can be
+            the same token as the main Vercel credential above, or a separate
+            scoped one.
+          </p>
+          <CredentialInput
+            name="goosekit_claude_token"
+            label="Claude Token"
+            placeholder="sk-ant-..."
+            required
+          />
+          <p className="text-xs text-zinc-500 -mt-1">
+            Anthropic OAuth/API token Goose Kit uses for content generation.
+            Billed against your Anthropic account per build.
+          </p>
+          <CredentialInput
+            name="goosekit_base_url"
+            label="Base URL (optional)"
+            type="text"
+            placeholder="https://goose-site-builder-production.up.railway.app"
+            defaultValue={config.goosekit_base_url || ""}
+          />
+          <p className="text-xs text-zinc-500 -mt-1">
+            Override the Goose Kit API base URL. Leave blank to use the
+            default Railway deployment.
+          </p>
+          <SaveButton state={gooseState} pending={goosePending} />
         </form>
       </IntegrationCard>
 

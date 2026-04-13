@@ -23,7 +23,8 @@ insert into public.service_definitions (id, org_id, name, slug, description, req
      {"key": "email", "label": "Business Email", "type": "email", "required": true},
      {"key": "address", "label": "Business Address", "type": "text", "required": false},
      {"key": "services_offered", "label": "Services You Offer", "type": "textarea", "required": true, "placeholder": "List the main services you offer"},
-     {"key": "about_text", "label": "About Your Business", "type": "textarea", "required": false, "help_text": "A brief description we can use on your About page"}
+     {"key": "about_text", "label": "About Your Business", "type": "textarea", "required": false, "help_text": "A brief description we can use on your About page"},
+     {"key": "existing_website", "label": "Existing Website (if you have one)", "type": "url", "required": false, "placeholder": "https://yourbusiness.com", "help_text": "If you already have a website, paste it here so we can import your logo, colors, and content into the new build."}
    ]'::jsonb,
    '[
      {"key": "select_template", "label": "Select Niche Template", "description": "Find or create a template for this niche", "automated": true, "task_type": "website_generation"},

@@ -112,6 +112,25 @@ export async function saveIntegrationCredentials(
         break;
       }
 
+      case "goosekit": {
+        const githubPat = (formData.get("goosekit_github_pat") as string)?.trim();
+        const vercelToken = (formData.get("goosekit_vercel_token") as string)?.trim();
+        const claudeToken = (formData.get("goosekit_claude_token") as string)?.trim();
+        const baseUrl = (formData.get("goosekit_base_url") as string)?.trim();
+        if (!githubPat || !vercelToken || !claudeToken) {
+          return {
+            success: false,
+            error:
+              "Goose Kit needs all three tokens: GitHub PAT, Vercel Token, and Claude Token.",
+          };
+        }
+        updates.goosekit_github_pat_encrypted = encrypt(githubPat);
+        updates.goosekit_vercel_token_encrypted = encrypt(vercelToken);
+        updates.goosekit_claude_token_encrypted = encrypt(claudeToken);
+        updates.goosekit_base_url = baseUrl || null;
+        break;
+      }
+
       case "vercel": {
         const token = (formData.get("vercel_token") as string)?.trim();
         const teamId = (formData.get("vercel_team_id") as string)?.trim();

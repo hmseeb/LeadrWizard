@@ -281,7 +281,7 @@ export async function getOrgCredentials(
   const { data: org, error } = await supabase
     .from("organizations")
     .select(
-      "twilio_account_sid_encrypted, twilio_auth_token_encrypted, twilio_phone_number, ghl_api_key_encrypted, ghl_location_id, ghl_company_id, ghl_snapshot_id, vapi_api_key_encrypted, vapi_assistant_id, elevenlabs_agent_id, vercel_token_encrypted, vercel_team_id, anthropic_api_key_encrypted, linked2checkout_api_key_encrypted, linked2checkout_webhook_secret_encrypted, linked2checkout_merchant_id, linked2checkout_product_id_ignite"
+      "twilio_account_sid_encrypted, twilio_auth_token_encrypted, twilio_phone_number, ghl_api_key_encrypted, ghl_location_id, ghl_company_id, ghl_snapshot_id, vapi_api_key_encrypted, vapi_assistant_id, elevenlabs_agent_id, vercel_token_encrypted, vercel_team_id, anthropic_api_key_encrypted, goosekit_github_pat_encrypted, goosekit_vercel_token_encrypted, goosekit_claude_token_encrypted, goosekit_base_url, linked2checkout_api_key_encrypted, linked2checkout_webhook_secret_encrypted, linked2checkout_merchant_id, linked2checkout_product_id_ignite"
     )
     .eq("id", orgId)
     .single();
@@ -378,6 +378,57 @@ export async function getOrgCredentials(
         apiKey,
       };
     }
+  }
+
+  // Goose Kit: three downstream tokens required together (GitHub PAT,
+  // Vercel token, Claude token). If any one is missing or fails to
+  // decrypt, we treat the whole block as unconfigured — partial creds
+  // would just produce a confusing upstream error from Goose Kit.
+  if (
+    row.goosekit_github_pat_encrypted &&
+    row.goosekit_vercel_token_encrypted &&
+    row.goosekit_claude_token_encrypted
+  ) {
+    const githubPat = tryDecrypt(
+      "goosekit.githubPat",
+      row.goosekit_github_pat_encrypted
+    );
+    const vercelToken = tryDecrypt(
+      "goosekit.vercelToken",
+      row.goosekit_vercel_token_encrypted
+    );
+    const claudeToken = tryDecrypt(
+      "goosekit.claudeToken",
+      row.goosekit_claude_token_encrypted
+    );
+    if (githubPat && vercelToken && claudeToken) {
+      creds.goosekit = {
+        githubPat,
+        vercelToken,
+        claudeToken,
+        baseUrl: row.goosekit_base_url || undefined,
+      };
+    }
+  }
+
+  // Env-var fallback for Goose Kit: mirrors the Dropkit settings-store
+  // pattern. If the org row didn't provide a complete set of tokens, fall
+  // back to platform-wide env vars so Greg can configure Goose Kit once
+  // at the Vercel project level during early testing (or when running a
+  // single-tenant deploy). No encryption here because env vars are
+  // already treated as secrets by the hosting platform.
+  if (
+    !creds.goosekit &&
+    process.env.GOOSE_GITHUB_PAT &&
+    process.env.GOOSE_VERCEL_TOKEN &&
+    process.env.GOOSE_CLAUDE_TOKEN
+  ) {
+    creds.goosekit = {
+      githubPat: process.env.GOOSE_GITHUB_PAT,
+      vercelToken: process.env.GOOSE_VERCEL_TOKEN,
+      claudeToken: process.env.GOOSE_CLAUDE_TOKEN,
+      baseUrl: process.env.GOOSE_BASE_URL || undefined,
+    };
   }
 
   // Linked2Checkout: api key + webhook secret required

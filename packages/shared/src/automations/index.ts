@@ -32,6 +32,13 @@ export {
 } from "./website-builder";
 
 export {
+  initiateGoosekitBuild,
+  type GoosekitBuildInput,
+  type GoosekitCredentials,
+  type GoosekitBuildResult,
+} from "./goosekit-builder";
+
+export {
   provisionSubAccount,
   deploySnapshot,
   syncContactToGHL,

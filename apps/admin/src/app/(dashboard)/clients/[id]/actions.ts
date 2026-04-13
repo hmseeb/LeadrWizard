@@ -5,8 +5,12 @@ import { getUserOrg, getOrgCredentials } from "@leadrwizard/shared/tenant";
 import {
   initiateWebsiteBuild,
   findNicheTemplate,
+  initiateGoosekitBuild,
 } from "@leadrwizard/shared/automations";
-import type { WebsiteBuildData } from "@leadrwizard/shared/automations";
+import type {
+  WebsiteBuildData,
+  GoosekitBuildInput,
+} from "@leadrwizard/shared/automations";
 import { revalidatePath } from "next/cache";
 
 async function getAuthedOrg() {
@@ -238,6 +242,124 @@ export interface StartWebsiteBuildOverrides {
   aboutText?: string;
 }
 
+/**
+ * Shared "resolve the website-build inputs from session_responses + clients
+ * row + overrides, then check for missing required fields" helper. Used by
+ * both `startWebsiteBuild` (in-repo AI builder) and `startGoosekitBuild`
+ * (Goose Kit alternative) so they can't drift on the missing-field check.
+ *
+ * Throws if any of the five required fields (business_name, niche, phone,
+ * email, services_offered) can't be resolved through the fallback chain —
+ * the thrown message is formatted to help the client button UI decide
+ * whether to expand its inline manual-entry form.
+ */
+interface ResolvedWebsiteBuildInput {
+  business_name: string;
+  niche: string;
+  phone: string;
+  email: string;
+  services_offered: string;
+  tagline?: string;
+  primary_color?: string;
+  logo_url?: string;
+  address?: string;
+  about_text?: string;
+  existing_website?: string;
+  /** Parsed services list for the in-repo builder's array-shaped field. */
+  services_offered_list: string[];
+}
+
+async function resolveWebsiteBuildInput(
+  supabase: ReturnType<typeof createSupabaseServiceClient>,
+  clientId: string,
+  clientServiceId: string,
+  overrides?: StartWebsiteBuildOverrides
+): Promise<ResolvedWebsiteBuildInput> {
+  // 1. Pull onboarding answers scoped to this client_service
+  const { data: responses } = await supabase
+    .from("session_responses")
+    .select("field_key, field_value")
+    .eq("client_service_id", clientServiceId);
+
+  const answers: Record<string, string> = {};
+  for (const r of responses || []) {
+    const row = r as { field_key: string; field_value: string };
+    answers[row.field_key] = row.field_value;
+  }
+
+  // 2. Pull the client row for fallback contact/business details. phone,
+  // email, and business_name live here from provisioning time, so the
+  // build should never fail for lack of them even if the widget missed
+  // them.
+  const { data: clientRow } = await supabase
+    .from("clients")
+    .select("name, business_name, email, phone")
+    .eq("id", clientId)
+    .single();
+
+  const fallbackClient = (clientRow || {}) as {
+    name?: string | null;
+    business_name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  };
+
+  // 3. Resolve each required field via: overrides → session_responses →
+  // clients row. Overrides only take precedence for fields with no other
+  // reliable source (niche, services_offered, and a few optional ones) —
+  // we never let the overrides clobber a widget-captured business_name,
+  // phone, or email.
+  const business_name =
+    answers.business_name?.trim() ||
+    fallbackClient.business_name?.trim() ||
+    fallbackClient.name?.trim() ||
+    "";
+  const niche = overrides?.niche?.trim() || answers.niche?.trim() || "";
+  const phone =
+    answers.phone?.trim() || fallbackClient.phone?.trim() || "";
+  const email =
+    answers.email?.trim() || fallbackClient.email?.trim() || "";
+  const services_offered =
+    overrides?.servicesOffered?.trim() ||
+    answers.services_offered?.trim() ||
+    "";
+
+  const missing: string[] = [];
+  if (!business_name) missing.push("business_name");
+  if (!niche) missing.push("niche");
+  if (!phone) missing.push("phone");
+  if (!email) missing.push("email");
+  if (!services_offered) missing.push("services_offered");
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required fields for website build: ${missing.join(", ")}. ` +
+        `Fields not captured during onboarding can be entered manually below.`
+    );
+  }
+
+  const services_offered_list = services_offered
+    .split(/[\n,;]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  return {
+    business_name,
+    niche,
+    phone,
+    email,
+    services_offered,
+    services_offered_list,
+    tagline: overrides?.tagline?.trim() || answers.tagline || undefined,
+    primary_color:
+      overrides?.primaryColor?.trim() || answers.primary_color || undefined,
+    logo_url: answers.logo_url || undefined,
+    address: answers.address || undefined,
+    about_text:
+      overrides?.aboutText?.trim() || answers.about_text || undefined,
+    existing_website: answers.existing_website || undefined,
+  };
+}
+
 export async function startWebsiteBuild(
   clientId: string,
   clientServiceId: string,
@@ -280,99 +402,28 @@ export async function startWebsiteBuild(
     throw new Error("Website is already marked delivered");
   }
 
-  // --- 2. Pull onboarding answers scoped to this client_service ---
-  const { data: responses } = await supabase
-    .from("session_responses")
-    .select("field_key, field_value")
-    .eq("client_service_id", clientServiceId);
-
-  const answers: Record<string, string> = {};
-  for (const r of responses || []) {
-    const row = r as { field_key: string; field_value: string };
-    answers[row.field_key] = row.field_value;
-  }
-
-  // Also pull the client row so we can fall back to the contact/business
-  // details captured at provisioning time. This is how we unblock clients
-  // whose widget flow didn't persist the website-build service-specific
-  // fields — phone, email, and business_name are already on `clients` from
-  // the moment the client was created, so there's no reason the website
-  // build should fail for lack of them.
-  const { data: clientRow } = await supabase
-    .from("clients")
-    .select("name, business_name, email, phone")
-    .eq("id", clientId)
-    .single();
-
-  const fallbackClient = (clientRow || {}) as {
-    name?: string | null;
-    business_name?: string | null;
-    email?: string | null;
-    phone?: string | null;
-  };
-
-  // Resolve each field via: session_responses → clients row → overrides.
-  // Overrides only apply for fields that have no other source (niche,
-  // services_offered, and a few optional ones) — we don't let Greg
-  // accidentally clobber a widget-captured business_name/phone/email.
-  const resolved = {
-    business_name:
-      answers.business_name?.trim() ||
-      fallbackClient.business_name?.trim() ||
-      fallbackClient.name?.trim() ||
-      "",
-    niche:
-      overrides?.niche?.trim() ||
-      answers.niche?.trim() ||
-      "",
-    phone:
-      answers.phone?.trim() ||
-      fallbackClient.phone?.trim() ||
-      "",
-    email:
-      answers.email?.trim() ||
-      fallbackClient.email?.trim() ||
-      "",
-    services_offered:
-      overrides?.servicesOffered?.trim() ||
-      answers.services_offered?.trim() ||
-      "",
-  };
-
-  const missing: string[] = [];
-  for (const [key, value] of Object.entries(resolved)) {
-    if (!value) missing.push(key);
-  }
-  if (missing.length > 0) {
-    // Tell the client exactly what's missing so the button UI can decide
-    // whether to show a manual-entry form (for niche/services_offered) or
-    // bail with a hard error (for phone/email which should never be missing
-    // once the client was provisioned).
-    throw new Error(
-      `Missing required fields for website build: ${missing.join(", ")}. ` +
-        `Fields not captured during onboarding can be entered manually below.`
-    );
-  }
-
-  // services_offered is stored as a textarea response; split on common
-  // separators so the builder gets an array.
-  const servicesOffered = resolved.services_offered
-    .split(/[\n,;]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  // --- 2. Resolve the inputs via the shared helper (session_responses →
+  // clients row → overrides, with missing-field check). This is shared
+  // with startGoosekitBuild so the two builders can't drift on the
+  // missing-field error message that drives the button's inline form.
+  const resolved = await resolveWebsiteBuildInput(
+    supabase,
+    clientId,
+    clientServiceId,
+    overrides
+  );
 
   const buildData: WebsiteBuildData = {
     business_name: resolved.business_name,
     niche: resolved.niche,
-    tagline: overrides?.tagline?.trim() || answers.tagline || undefined,
-    primary_color:
-      overrides?.primaryColor?.trim() || answers.primary_color || undefined,
-    logo_url: answers.logo_url || undefined,
+    tagline: resolved.tagline,
+    primary_color: resolved.primary_color,
+    logo_url: resolved.logo_url,
     phone: resolved.phone,
     email: resolved.email,
-    address: answers.address || undefined,
-    services_offered: servicesOffered,
-    about_text: overrides?.aboutText?.trim() || answers.about_text || undefined,
+    address: resolved.address,
+    services_offered: resolved.services_offered_list,
+    about_text: resolved.about_text,
   };
 
   // --- 3. Find a niche template for this industry ---
@@ -464,6 +515,149 @@ export async function startWebsiteBuild(
       ok: false,
       error:
         err instanceof Error ? err.message : "Unknown error starting website build",
+    };
+  }
+}
+
+/**
+ * Second, alternative website builder: calls Goose Kit (an external
+ * Railway-hosted site generator) instead of the in-repo Claude+Vercel
+ * pipeline. Mirrors `startWebsiteBuild` exactly for the first ~80% of
+ * the flow (scope/state check, input resolution, missing-field errors)
+ * and only diverges at the point where it calls the builder.
+ *
+ * Greg picks which builder to fire per client from the client detail
+ * page; this action is wired to the "Start Goose Kit build" button.
+ * See `goosekit-builder.ts` for the adapter and the credential shape.
+ *
+ * Notes on what's different from the in-repo builder:
+ * - No niche template lookup. Goose Kit handles templating internally,
+ *   so `needsTemplate` is always `false` in the return value.
+ * - No Vercel/Anthropic env-var hoisting. Goose Kit gets its downstream
+ *   tokens passed directly in the request body via `GoosekitCredentials`.
+ * - No service_tasks row. Goose Kit is synchronous and doesn't plug into
+ *   the task processor; we just update client_services.status inline.
+ */
+export async function startGoosekitBuild(
+  clientId: string,
+  clientServiceId: string,
+  overrides?: StartWebsiteBuildOverrides
+): Promise<
+  | { ok: true; previewUrl: string | null; needsTemplate: boolean }
+  | { ok: false; error: string }
+> {
+  try {
+    const { supabase, orgId } = await getAuthedOrg();
+
+    // --- 1. Scope + state check on the client_service row ---
+    const { data: cs } = await supabase
+      .from("client_services")
+      .select(
+        "id, client_id, status, opted_out, client:clients(org_id), service:service_definitions(slug, name)"
+      )
+      .eq("id", clientServiceId)
+      .single();
+
+    if (!cs) throw new Error("Service not found");
+    const csRow = cs as unknown as {
+      id: string;
+      client_id: string;
+      status: string;
+      opted_out: boolean;
+      client: { org_id: string } | null;
+      service: { slug: string; name: string } | null;
+    };
+
+    if (csRow.client?.org_id !== orgId) throw new Error("Insufficient permissions");
+    if (csRow.client_id !== clientId) throw new Error("Client mismatch");
+    if (csRow.opted_out) throw new Error("Client has opted out of this service");
+    if (csRow.service?.slug !== "website-build") {
+      throw new Error(
+        `startGoosekitBuild called on non-website-build service: ${csRow.service?.slug}`
+      );
+    }
+    if (csRow.status === "delivered") {
+      throw new Error("Website is already marked delivered");
+    }
+
+    // --- 2. Resolve inputs via the shared helper ---
+    const resolved = await resolveWebsiteBuildInput(
+      supabase,
+      clientId,
+      clientServiceId,
+      overrides
+    );
+
+    // --- 3. Goose Kit credentials pre-flight ---
+    const creds = await getOrgCredentials(supabase, orgId);
+    if (!creds.goosekit) {
+      throw new Error(
+        "Goose Kit is not fully configured — save all three tokens (GitHub PAT, Vercel Token, Claude Token) in Settings → Integrations, or set GOOSE_GITHUB_PAT / GOOSE_VERCEL_TOKEN / GOOSE_CLAUDE_TOKEN as env vars."
+      );
+    }
+
+    // --- 4. Call Goose Kit. It's synchronous — returns the preview URL
+    // in the response body. Throws on any non-2xx with details in the
+    // message, which we surface back to the browser via the ok:false path.
+    const buildInput: GoosekitBuildInput = {
+      businessName: resolved.business_name,
+      niche: resolved.niche,
+      servicesOffered: resolved.services_offered,
+      phone: resolved.phone,
+      email: resolved.email,
+      tagline: resolved.tagline,
+      primaryColor: resolved.primary_color,
+      logoUrl: resolved.logo_url,
+      address: resolved.address,
+      aboutText: resolved.about_text,
+      existingWebsite: resolved.existing_website,
+    };
+
+    const buildResult = await initiateGoosekitBuild(buildInput, creds.goosekit);
+
+    // --- 5. Flip the client_service to in_progress so the worklist reflects
+    // the in-flight state. `markClientServiceDelivered` is the manual fallback
+    // to transition this to `delivered` once Greg confirms the preview.
+    await supabase
+      .from("client_services")
+      .update({
+        status: "in_progress",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", clientServiceId);
+
+    // --- 6. Log the build kick-off. Note we log builder:goosekit in the
+    // metadata so the interaction timeline can visually distinguish the
+    // two paths.
+    await supabase.from("interaction_log").insert({
+      client_id: clientId,
+      channel: "system",
+      direction: "outbound",
+      content_type: "system_event",
+      content: `Goose Kit website build kicked off for ${resolved.business_name}`,
+      metadata: {
+        client_service_id: clientServiceId,
+        preview_url: buildResult.previewUrl,
+        build_id: buildResult.buildId,
+        builder: "goosekit",
+        source: "manual_start_goosekit_build",
+      },
+    });
+
+    revalidatePath(`/clients/${clientId}`);
+    return {
+      ok: true,
+      previewUrl: buildResult.previewUrl,
+      needsTemplate: false,
+    };
+  } catch (err) {
+    console.error("[startGoosekitBuild] failed:", err);
+    return {
+      ok: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Unknown error starting Goose Kit website build",
     };
   }
 }
