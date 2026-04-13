@@ -109,8 +109,9 @@ export default async function ClientDetailPage({
         )}
       </div>
 
-      {/* Onboarding Link — show for any non-completed session so agency can manually share it */}
-      {sessions && sessions.length > 0 && sessions[0].status !== "completed" && (
+      {/* Onboarding Link — always shown when a session exists so the agency
+          can re-share it even after the client has already completed. */}
+      {sessions && sessions.length > 0 && (
         <section className="mt-6">
           <CopyOnboardingLink sessionId={sessions[0].id} />
         </section>
