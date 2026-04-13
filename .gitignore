@@ -7,6 +7,9 @@ dist/
 out/
 build/
 
+# Widget bundle copied into admin at build time (source lives in apps/widget)
+apps/admin/public/widget.js
+
 # Turborepo
 .turbo/
 

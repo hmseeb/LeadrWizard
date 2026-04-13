@@ -4,11 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3000",
-    "build": "next build",
+    "build": "node scripts/copy-widget.mjs && next build",
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
-    "clean": "rm -rf .next"
+    "clean": "rm -rf .next public/widget.js"
   },
   "dependencies": {
     "@leadrwizard/shared": "workspace:*",
@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@leadrwizard/tsconfig": "workspace:*",
+    "@leadrwizard/widget": "workspace:*",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
