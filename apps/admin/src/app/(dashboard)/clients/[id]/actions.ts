@@ -222,9 +222,26 @@ export async function markClientServiceDelivered(
  *    the in-flight state. `approveWebsite` later transitions it to
  *    `delivered` (or Greg can hit Mark Delivered as the manual fallback).
  */
+/**
+ * Manual overrides Greg can pass when the onboarding widget didn't
+ * capture the service-specific website-build fields. `niche` and
+ * `servicesOffered` have no alternative source in the schema — nothing
+ * else on `clients` or `session_responses` provides them — so the
+ * client detail page collects them via a small inline form when the
+ * widget data is missing.
+ */
+export interface StartWebsiteBuildOverrides {
+  niche?: string;
+  servicesOffered?: string;
+  tagline?: string;
+  primaryColor?: string;
+  aboutText?: string;
+}
+
 export async function startWebsiteBuild(
   clientId: string,
-  clientServiceId: string
+  clientServiceId: string,
+  overrides?: StartWebsiteBuildOverrides
 ): Promise<
   | { ok: true; previewUrl: string | null; needsTemplate: boolean }
   | { ok: false; error: string }
@@ -275,34 +292,87 @@ export async function startWebsiteBuild(
     answers[row.field_key] = row.field_value;
   }
 
+  // Also pull the client row so we can fall back to the contact/business
+  // details captured at provisioning time. This is how we unblock clients
+  // whose widget flow didn't persist the website-build service-specific
+  // fields — phone, email, and business_name are already on `clients` from
+  // the moment the client was created, so there's no reason the website
+  // build should fail for lack of them.
+  const { data: clientRow } = await supabase
+    .from("clients")
+    .select("name, business_name, email, phone")
+    .eq("id", clientId)
+    .single();
+
+  const fallbackClient = (clientRow || {}) as {
+    name?: string | null;
+    business_name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  };
+
+  // Resolve each field via: session_responses → clients row → overrides.
+  // Overrides only apply for fields that have no other source (niche,
+  // services_offered, and a few optional ones) — we don't let Greg
+  // accidentally clobber a widget-captured business_name/phone/email.
+  const resolved = {
+    business_name:
+      answers.business_name?.trim() ||
+      fallbackClient.business_name?.trim() ||
+      fallbackClient.name?.trim() ||
+      "",
+    niche:
+      overrides?.niche?.trim() ||
+      answers.niche?.trim() ||
+      "",
+    phone:
+      answers.phone?.trim() ||
+      fallbackClient.phone?.trim() ||
+      "",
+    email:
+      answers.email?.trim() ||
+      fallbackClient.email?.trim() ||
+      "",
+    services_offered:
+      overrides?.servicesOffered?.trim() ||
+      answers.services_offered?.trim() ||
+      "",
+  };
+
   const missing: string[] = [];
-  for (const required of ["business_name", "niche", "phone", "email", "services_offered"]) {
-    if (!answers[required]?.trim()) missing.push(required);
+  for (const [key, value] of Object.entries(resolved)) {
+    if (!value) missing.push(key);
   }
   if (missing.length > 0) {
+    // Tell the client exactly what's missing so the button UI can decide
+    // whether to show a manual-entry form (for niche/services_offered) or
+    // bail with a hard error (for phone/email which should never be missing
+    // once the client was provisioned).
     throw new Error(
-      `Missing required onboarding answers for website build: ${missing.join(", ")}. The client hasn't completed onboarding for this service.`
+      `Missing required fields for website build: ${missing.join(", ")}. ` +
+        `Fields not captured during onboarding can be entered manually below.`
     );
   }
 
   // services_offered is stored as a textarea response; split on common
   // separators so the builder gets an array.
-  const servicesOffered = answers.services_offered
+  const servicesOffered = resolved.services_offered
     .split(/[\n,;]+/)
     .map((s) => s.trim())
     .filter(Boolean);
 
   const buildData: WebsiteBuildData = {
-    business_name: answers.business_name,
-    niche: answers.niche,
-    tagline: answers.tagline || undefined,
-    primary_color: answers.primary_color || undefined,
+    business_name: resolved.business_name,
+    niche: resolved.niche,
+    tagline: overrides?.tagline?.trim() || answers.tagline || undefined,
+    primary_color:
+      overrides?.primaryColor?.trim() || answers.primary_color || undefined,
     logo_url: answers.logo_url || undefined,
-    phone: answers.phone,
-    email: answers.email,
+    phone: resolved.phone,
+    email: resolved.email,
     address: answers.address || undefined,
     services_offered: servicesOffered,
-    about_text: answers.about_text || undefined,
+    about_text: overrides?.aboutText?.trim() || answers.about_text || undefined,
   };
 
   // --- 3. Find a niche template for this industry ---
