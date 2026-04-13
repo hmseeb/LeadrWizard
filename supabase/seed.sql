@@ -113,21 +113,22 @@ insert into public.package_services (package_id, service_id) values
   ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'dddddddd-dddd-dddd-dddd-dddddddddddd');
 
 -- IGNITE Package ($297/mo)
--- Website + GMB + GHL Automations (snapshot delivers: review funnel, webchat widget, missed-call text-back, SMS follow-up).
--- A2P 10DLC registration is intentionally NOT bundled here — it's a 3-7 day approval cycle that
--- cannot meet the "live in 48 hours" guarantee. Offer it as an upsell or bundle into DOMINATE.
+-- Website + GHL Automations + A2P 10DLC (the three services the client actually needs).
+-- GMB is handled by GHL natively, so we do not sell it as a separate service.
+-- A2P carrier approval can take 3-7 days, but we start the registration immediately on
+-- signup so the 48-hour site launch is not blocked on it.
 insert into public.service_packages (id, org_id, name, description, price_cents, price_interval) values
   ('ffffffff-ffff-ffff-ffff-ffffffffffff',
    '11111111-1111-1111-1111-111111111111',
    'IGNITE',
-   'Get found. Get seen. Stop losing leads to silence. Professional website, GMB optimization, and GHL automations (review funnel, webchat widget, missed-call text-back, SMS follow-up). Live in 48 hours.',
+   'Get found. Get seen. Stop losing leads to silence. Professional website, GHL automations (review funnel, webchat widget, missed-call text-back, SMS follow-up), and A2P 10DLC texting registration. Live in 48 hours.',
    29700,
    'monthly');
 
 insert into public.package_services (package_id, service_id) values
   ('ffffffff-ffff-ffff-ffff-ffffffffffff', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),  -- AI Website Build
-  ('ffffffff-ffff-ffff-ffff-ffffffffffff', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),  -- GMB Optimization
-  ('ffffffff-ffff-ffff-ffff-ffffffffffff', 'dddddddd-dddd-dddd-dddd-dddddddddddd');  -- GHL Automations Setup
+  ('ffffffff-ffff-ffff-ffff-ffffffffffff', 'dddddddd-dddd-dddd-dddd-dddddddddddd'),  -- GHL Automations Setup
+  ('ffffffff-ffff-ffff-ffff-ffffffffffff', 'cccccccc-cccc-cccc-cccc-cccccccccccc');  -- A2P 10DLC Registration
 
 -- Sample niche templates
 insert into public.niche_templates (org_id, niche_name, description, template_data) values
