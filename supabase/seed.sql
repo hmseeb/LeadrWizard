@@ -97,19 +97,37 @@ insert into public.service_definitions (id, org_id, name, slug, description, req
      {"key": "customize", "label": "Customize Automations", "description": "Update snapshot with client-specific data", "automated": true, "task_type": "ghl_snapshot_deploy"}
    ]'::jsonb);
 
--- Starter Package (all 4 services)
-insert into public.service_packages (id, org_id, name, description, price_cents) values
+-- Starter Package (all 4 services, one-time pricing — legacy)
+insert into public.service_packages (id, org_id, name, description, price_cents, price_interval) values
   ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
    '11111111-1111-1111-1111-111111111111',
    'Starter Package',
    'Website + GMB + A2P + GHL Automations — everything to get your business online and running',
-   49900);
+   49900,
+   'one_time');
 
 insert into public.package_services (package_id, service_id) values
   ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
   ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
   ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
   ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'dddddddd-dddd-dddd-dddd-dddddddddddd');
+
+-- IGNITE Package ($297/mo)
+-- Website + GMB + GHL Automations (snapshot delivers: review funnel, webchat widget, missed-call text-back, SMS follow-up).
+-- A2P 10DLC registration is intentionally NOT bundled here — it's a 3-7 day approval cycle that
+-- cannot meet the "live in 48 hours" guarantee. Offer it as an upsell or bundle into DOMINATE.
+insert into public.service_packages (id, org_id, name, description, price_cents, price_interval) values
+  ('ffffffff-ffff-ffff-ffff-ffffffffffff',
+   '11111111-1111-1111-1111-111111111111',
+   'IGNITE',
+   'Get found. Get seen. Stop losing leads to silence. Professional website, GMB optimization, and GHL automations (review funnel, webchat widget, missed-call text-back, SMS follow-up). Live in 48 hours.',
+   29700,
+   'monthly');
+
+insert into public.package_services (package_id, service_id) values
+  ('ffffffff-ffff-ffff-ffff-ffffffffffff', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),  -- AI Website Build
+  ('ffffffff-ffff-ffff-ffff-ffffffffffff', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),  -- GMB Optimization
+  ('ffffffff-ffff-ffff-ffff-ffffffffffff', 'dddddddd-dddd-dddd-dddd-dddddddddddd');  -- GHL Automations Setup
 
 -- Sample niche templates
 insert into public.niche_templates (org_id, niche_name, description, template_data) values

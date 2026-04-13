@@ -21,7 +21,7 @@ export default async function SettingsPage() {
   const { data: org } = await serviceClient
     .from("organizations")
     .select(
-      "twilio_phone_number, twilio_account_sid_encrypted, ghl_api_key_encrypted, ghl_location_id, ghl_company_id, vapi_api_key_encrypted, vapi_assistant_id, elevenlabs_agent_id, google_client_id_encrypted, anthropic_api_key_encrypted, settings"
+      "twilio_phone_number, twilio_account_sid_encrypted, ghl_api_key_encrypted, ghl_location_id, ghl_company_id, ghl_snapshot_id, vapi_api_key_encrypted, vapi_assistant_id, elevenlabs_agent_id, google_client_id_encrypted, anthropic_api_key_encrypted, vercel_token_encrypted, vercel_team_id, linked2checkout_api_key_encrypted, linked2checkout_webhook_secret_encrypted, linked2checkout_merchant_id, linked2checkout_product_id_ignite, settings"
     )
     .eq("id", orgData.org.id)
     .single();
@@ -40,11 +40,21 @@ export default async function SettingsPage() {
     has_ghl_creds: !!(row.ghl_api_key_encrypted),
     ghl_location_id: (row.ghl_location_id as string) || null,
     ghl_company_id: (row.ghl_company_id as string) || null,
+    ghl_snapshot_id: (row.ghl_snapshot_id as string) || null,
     has_vapi_creds: !!(row.vapi_api_key_encrypted),
     vapi_assistant_id: (row.vapi_assistant_id as string) || null,
     elevenlabs_agent_id: (row.elevenlabs_agent_id as string) || null,
     has_google_creds: !!(row.google_client_id_encrypted),
     has_anthropic_creds: !!(row.anthropic_api_key_encrypted),
+    has_vercel_creds: !!(row.vercel_token_encrypted),
+    vercel_team_id: (row.vercel_team_id as string) || null,
+    has_linked2checkout_creds:
+      !!(row.linked2checkout_api_key_encrypted) &&
+      !!(row.linked2checkout_webhook_secret_encrypted),
+    linked2checkout_merchant_id:
+      (row.linked2checkout_merchant_id as string) || null,
+    linked2checkout_product_id_ignite:
+      (row.linked2checkout_product_id_ignite as string) || null,
   };
 
   return (

@@ -281,7 +281,7 @@ export async function getOrgCredentials(
   const { data: org, error } = await supabase
     .from("organizations")
     .select(
-      "twilio_account_sid_encrypted, twilio_auth_token_encrypted, twilio_phone_number, ghl_api_key_encrypted, ghl_location_id, ghl_company_id, vapi_api_key_encrypted, vapi_assistant_id, elevenlabs_agent_id"
+      "twilio_account_sid_encrypted, twilio_auth_token_encrypted, twilio_phone_number, ghl_api_key_encrypted, ghl_location_id, ghl_company_id, ghl_snapshot_id, vapi_api_key_encrypted, vapi_assistant_id, elevenlabs_agent_id, vercel_token_encrypted, vercel_team_id, linked2checkout_api_key_encrypted, linked2checkout_webhook_secret_encrypted, linked2checkout_merchant_id, linked2checkout_product_id_ignite"
     )
     .eq("id", orgId)
     .single();
@@ -302,12 +302,13 @@ export async function getOrgCredentials(
     };
   }
 
-  // GHL: apiKey and locationId required
+  // GHL: apiKey and locationId required; snapshotId optional but needed for IGNITE
   if (row.ghl_api_key_encrypted && row.ghl_location_id) {
     creds.ghl = {
       apiKey: decrypt(row.ghl_api_key_encrypted),
       locationId: row.ghl_location_id,
       companyId: row.ghl_company_id || undefined,
+      snapshotId: row.ghl_snapshot_id || undefined,
     };
   }
 
@@ -323,6 +324,27 @@ export async function getOrgCredentials(
   if (row.elevenlabs_agent_id) {
     creds.elevenlabs = {
       agentId: row.elevenlabs_agent_id,
+    };
+  }
+
+  // Vercel: token required for client website deploys
+  if (row.vercel_token_encrypted) {
+    creds.vercel = {
+      token: decrypt(row.vercel_token_encrypted),
+      teamId: row.vercel_team_id || undefined,
+    };
+  }
+
+  // Linked2Checkout: api key + webhook secret required
+  if (
+    row.linked2checkout_api_key_encrypted &&
+    row.linked2checkout_webhook_secret_encrypted
+  ) {
+    creds.linked2checkout = {
+      apiKey: decrypt(row.linked2checkout_api_key_encrypted),
+      webhookSecret: decrypt(row.linked2checkout_webhook_secret_encrypted),
+      merchantId: row.linked2checkout_merchant_id || undefined,
+      productIdIgnite: row.linked2checkout_product_id_ignite || undefined,
     };
   }
 

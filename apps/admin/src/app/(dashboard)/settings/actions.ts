@@ -59,12 +59,14 @@ export async function saveIntegrationCredentials(
         const apiKey = (formData.get("ghl_api_key") as string)?.trim();
         const locationId = (formData.get("ghl_location_id") as string)?.trim();
         const companyId = (formData.get("ghl_company_id") as string)?.trim();
+        const snapshotId = (formData.get("ghl_snapshot_id") as string)?.trim();
         if (!apiKey) {
           return { success: false, error: "Agency API Key is required" };
         }
         updates.ghl_api_key_encrypted = encrypt(apiKey);
         updates.ghl_location_id = locationId || null;
         updates.ghl_company_id = companyId || null;
+        updates.ghl_snapshot_id = snapshotId || null;
         break;
       }
 
@@ -107,6 +109,35 @@ export async function saveIntegrationCredentials(
           return { success: false, error: "API Key is required" };
         }
         updates.anthropic_api_key_encrypted = encrypt(apiKey);
+        break;
+      }
+
+      case "vercel": {
+        const token = (formData.get("vercel_token") as string)?.trim();
+        const teamId = (formData.get("vercel_team_id") as string)?.trim();
+        if (!token) {
+          return { success: false, error: "Vercel API token is required" };
+        }
+        updates.vercel_token_encrypted = encrypt(token);
+        updates.vercel_team_id = teamId || null;
+        break;
+      }
+
+      case "linked2checkout": {
+        const apiKey = (formData.get("linked2checkout_api_key") as string)?.trim();
+        const webhookSecret = (formData.get("linked2checkout_webhook_secret") as string)?.trim();
+        const merchantId = (formData.get("linked2checkout_merchant_id") as string)?.trim();
+        const productIdIgnite = (formData.get("linked2checkout_product_id_ignite") as string)?.trim();
+        if (!apiKey || !webhookSecret) {
+          return {
+            success: false,
+            error: "API key and webhook signing secret are required",
+          };
+        }
+        updates.linked2checkout_api_key_encrypted = encrypt(apiKey);
+        updates.linked2checkout_webhook_secret_encrypted = encrypt(webhookSecret);
+        updates.linked2checkout_merchant_id = merchantId || null;
+        updates.linked2checkout_product_id_ignite = productIdIgnite || null;
         break;
       }
 

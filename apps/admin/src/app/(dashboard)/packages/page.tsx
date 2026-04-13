@@ -48,6 +48,16 @@ export default async function PackagesPage() {
                   {pkg.price_cents != null && (
                     <span className="text-lg font-bold text-brand-400">
                       ${(pkg.price_cents / 100).toFixed(2)}
+                      {pkg.price_interval === "monthly" && (
+                        <span className="ml-0.5 text-xs font-medium text-zinc-400">
+                          /mo
+                        </span>
+                      )}
+                      {pkg.price_interval === "yearly" && (
+                        <span className="ml-0.5 text-xs font-medium text-zinc-400">
+                          /yr
+                        </span>
+                      )}
                     </span>
                   )}
                   <PackageActions

@@ -61,9 +61,16 @@ export interface Organization {
   ghl_api_key_encrypted: string | null;
   ghl_location_id: string | null;
   ghl_company_id: string | null;
+  ghl_snapshot_id: string | null;
   vapi_api_key_encrypted: string | null;
   vapi_assistant_id: string | null;
   elevenlabs_agent_id: string | null;
+  vercel_token_encrypted: string | null;
+  vercel_team_id: string | null;
+  linked2checkout_api_key_encrypted: string | null;
+  linked2checkout_webhook_secret_encrypted: string | null;
+  linked2checkout_merchant_id: string | null;
+  linked2checkout_product_id_ignite: string | null;
 }
 
 export interface OrgSettings {
@@ -125,12 +132,15 @@ export interface SetupStepDefinition {
 
 // --- Packages ---
 
+export type PackagePriceInterval = "one_time" | "monthly" | "yearly";
+
 export interface ServicePackage {
   id: string;
   org_id: string;
   name: string;
   description: string | null;
   price_cents: number | null;
+  price_interval: PackagePriceInterval;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -202,11 +212,21 @@ export interface Client {
   updated_at: string;
 }
 
+export type ClientPackageStatus =
+  | "active"
+  | "past_due"
+  | "cancelled"
+  | "suspended";
+
 export interface ClientPackage {
   id: string;
   client_id: string;
   package_id: string;
   purchased_at: string;
+  status: ClientPackageStatus;
+  external_subscription_id: string | null;
+  current_period_end: string | null;
+  cancelled_at: string | null;
 }
 
 export interface ClientService {
@@ -340,6 +360,7 @@ export interface OrgCredentials {
     apiKey: string;
     locationId: string;
     companyId?: string;
+    snapshotId?: string;
   };
   vapi?: {
     apiKey: string;
@@ -347,6 +368,16 @@ export interface OrgCredentials {
   };
   elevenlabs?: {
     agentId: string;
+  };
+  vercel?: {
+    token: string;
+    teamId?: string;
+  };
+  linked2checkout?: {
+    apiKey: string;
+    webhookSecret: string;
+    merchantId?: string;
+    productIdIgnite?: string;
   };
 }
 

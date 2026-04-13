@@ -6,7 +6,7 @@ import {
   provisionTwilioNumber,
   type ActionResult,
 } from "./actions";
-import { Phone, Key, Bot, Mic, Globe, Brain } from "lucide-react";
+import { Phone, Key, Bot, Mic, Globe, Brain, Rocket, CreditCard } from "lucide-react";
 
 interface IntegrationConfig {
   twilio_phone_number: string | null;
@@ -14,11 +14,17 @@ interface IntegrationConfig {
   has_ghl_creds: boolean;
   ghl_location_id: string | null;
   ghl_company_id: string | null;
+  ghl_snapshot_id: string | null;
   has_vapi_creds: boolean;
   vapi_assistant_id: string | null;
   elevenlabs_agent_id: string | null;
   has_google_creds: boolean;
   has_anthropic_creds: boolean;
+  has_vercel_creds: boolean;
+  vercel_team_id: string | null;
+  has_linked2checkout_creds: boolean;
+  linked2checkout_merchant_id: string | null;
+  linked2checkout_product_id_ignite: string | null;
 }
 
 const initialState: ActionResult = { success: false };
@@ -144,6 +150,14 @@ export function CredentialsForm({ config }: { config: IntegrationConfig }) {
     saveIntegrationCredentials,
     initialState
   );
+  const [vercelState, vercelAction, vercelPending] = useActionState(
+    saveIntegrationCredentials,
+    initialState
+  );
+  const [l2cState, l2cAction, l2cPending] = useActionState(
+    saveIntegrationCredentials,
+    initialState
+  );
   const [provisionState, provisionAction, provisionPending] = useActionState(
     provisionTwilioNumber,
     initialState
@@ -262,6 +276,18 @@ export function CredentialsForm({ config }: { config: IntegrationConfig }) {
           <p className="text-xs text-zinc-500 -mt-1">
             Found in Agency Settings → Company. Required for listing subaccounts.
           </p>
+          <CredentialInput
+            name="ghl_snapshot_id"
+            label="Snapshot ID"
+            type="text"
+            placeholder="Enter snapshot ID (IGNITE automations)"
+            defaultValue={config.ghl_snapshot_id || ""}
+          />
+          <p className="text-xs text-zinc-500 -mt-1">
+            The GHL snapshot deployed to every new client. Must contain the
+            automations, review funnel, webchat widget, and missed-call text-back
+            workflows for IGNITE.
+          </p>
           <SaveButton state={ghlState} pending={ghlPending} />
         </form>
       </IntegrationCard>
@@ -361,6 +387,81 @@ export function CredentialsForm({ config }: { config: IntegrationConfig }) {
             required
           />
           <SaveButton state={anthropicState} pending={anthropicPending} />
+        </form>
+      </IntegrationCard>
+
+      {/* Vercel */}
+      <IntegrationCard
+        name="Vercel"
+        description="Client website hosting and deployment"
+        icon={Rocket}
+        isConfigured={config.has_vercel_creds}
+      >
+        <form action={vercelAction} className="space-y-3">
+          <input type="hidden" name="integration" value="vercel" />
+          <CredentialInput
+            name="vercel_token"
+            label="API Token"
+            placeholder="Enter Vercel API token"
+            required
+          />
+          <p className="text-xs text-zinc-500 -mt-1">
+            Create at Vercel → Account Settings → Tokens. Used to deploy generated client websites.
+          </p>
+          <CredentialInput
+            name="vercel_team_id"
+            label="Team ID (optional)"
+            type="text"
+            placeholder="Leave empty for personal account"
+            defaultValue={config.vercel_team_id || ""}
+          />
+          <SaveButton state={vercelState} pending={vercelPending} />
+        </form>
+      </IntegrationCard>
+
+      {/* Linked2Checkout */}
+      <IntegrationCard
+        name="Linked2Checkout"
+        description="Payment processor and recurring billing for IGNITE"
+        icon={CreditCard}
+        isConfigured={config.has_linked2checkout_creds}
+      >
+        <form action={l2cAction} className="space-y-3">
+          <input type="hidden" name="integration" value="linked2checkout" />
+          <CredentialInput
+            name="linked2checkout_api_key"
+            label="API Key"
+            placeholder="Enter Linked2Checkout API key"
+            required
+          />
+          <CredentialInput
+            name="linked2checkout_webhook_secret"
+            label="Webhook Signing Secret"
+            placeholder="Enter webhook signing secret"
+            required
+          />
+          <p className="text-xs text-zinc-500 -mt-1">
+            Used to verify inbound webhooks at{" "}
+            <code className="rounded bg-zinc-800 px-1 py-0.5 text-[11px]">
+              /api/webhooks/linked2checkout
+            </code>
+            .
+          </p>
+          <CredentialInput
+            name="linked2checkout_merchant_id"
+            label="Merchant ID"
+            type="text"
+            placeholder="Enter merchant ID"
+            defaultValue={config.linked2checkout_merchant_id || ""}
+          />
+          <CredentialInput
+            name="linked2checkout_product_id_ignite"
+            label="IGNITE Product / Plan ID"
+            type="text"
+            placeholder="The recurring plan ID for $297/mo IGNITE"
+            defaultValue={config.linked2checkout_product_id_ignite || ""}
+          />
+          <SaveButton state={l2cState} pending={l2cPending} />
         </form>
       </IntegrationCard>
     </div>
