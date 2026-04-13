@@ -161,7 +161,7 @@ export default async function ClientDetailPage({
                   </span>
                 </div>
                 {(canStartWebsiteBuild || canMarkDelivered) && (
-                  <div className="mt-3 flex items-start justify-end gap-3">
+                  <div className="mt-3 space-y-2">
                     {canStartWebsiteBuild && (
                       <StartWebsiteBuildButton
                         clientId={id}
@@ -169,10 +169,12 @@ export default async function ClientDetailPage({
                       />
                     )}
                     {canMarkDelivered && (
-                      <MarkDeliveredButton
-                        clientId={id}
-                        clientServiceId={cs.id}
-                      />
+                      <div className="flex justify-end">
+                        <MarkDeliveredButton
+                          clientId={id}
+                          clientServiceId={cs.id}
+                        />
+                      </div>
                     )}
                   </div>
                 )}
