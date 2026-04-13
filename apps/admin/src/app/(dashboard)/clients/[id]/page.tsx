@@ -1,6 +1,40 @@
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { notFound } from "next/navigation";
 import { CopyOnboardingLink } from "./copy-onboarding-link";
+import { GhlSubaccountPanel } from "./ghl-subaccount-panel";
+import { MarkDeliveredButton } from "./mark-delivered-button";
+
+function serviceStatusBadgeClass(status: string, optedOut: boolean): string {
+  if (optedOut) return "bg-gray-100 text-gray-500";
+  switch (status) {
+    case "delivered":
+      return "bg-green-100 text-green-700";
+    case "ready_to_deliver":
+      return "bg-emerald-100 text-emerald-700";
+    case "in_progress":
+      return "bg-blue-100 text-blue-700";
+    case "pending_onboarding":
+      return "bg-yellow-100 text-yellow-700";
+    case "paused":
+      return "bg-gray-100 text-gray-600";
+    default:
+      return "bg-blue-100 text-blue-700";
+  }
+}
+
+function serviceStatusLabel(status: string, optedOut: boolean): string {
+  if (optedOut) return "Opted Out";
+  switch (status) {
+    case "ready_to_deliver":
+      return "Ready to deliver";
+    case "in_progress":
+      return "In progress";
+    case "pending_onboarding":
+      return "Pending onboarding";
+    default:
+      return status;
+  }
+}
 
 export default async function ClientDetailPage({
   params,
@@ -70,32 +104,44 @@ export default async function ClientDetailPage({
         </section>
       )}
 
+      {/* GHL Subaccount linking / details */}
+      <section className="mt-6">
+        <GhlSubaccountPanel
+          clientId={id}
+          currentLocationId={client.ghl_sub_account_id ?? null}
+        />
+      </section>
+
       {/* Services Status */}
       <section className="mt-8">
         <h2 className="text-lg font-semibold">Services</h2>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           {services?.map((cs) => {
             const service = cs.service as { name: string; slug: string } | null;
+            const canMarkDelivered =
+              !cs.opted_out &&
+              cs.status !== "delivered" &&
+              (cs.status === "ready_to_deliver" || cs.status === "in_progress");
             return (
               <div key={cs.id} className="rounded-lg border bg-white p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3">
                   <span className="font-medium">
                     {service?.name || "Unknown"}
                   </span>
                   <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      cs.status === "delivered"
-                        ? "bg-green-100 text-green-700"
-                        : cs.opted_out
-                          ? "bg-gray-100 text-gray-500"
-                          : cs.status === "pending_onboarding"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : "bg-blue-100 text-blue-700"
-                    }`}
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${serviceStatusBadgeClass(cs.status, cs.opted_out)}`}
                   >
-                    {cs.opted_out ? "Opted Out" : cs.status}
+                    {serviceStatusLabel(cs.status, cs.opted_out)}
                   </span>
                 </div>
+                {canMarkDelivered && (
+                  <div className="mt-3 flex justify-end">
+                    <MarkDeliveredButton
+                      clientId={id}
+                      clientServiceId={cs.id}
+                    />
+                  </div>
+                )}
               </div>
             );
           })}

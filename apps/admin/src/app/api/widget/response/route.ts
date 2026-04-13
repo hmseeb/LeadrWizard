@@ -95,9 +95,12 @@ export async function POST(request: Request) {
     // --- Auto-completion check ---
     // After inserting the response, check if all required fields are now collected.
     // If so, mark the session as completed with 100% progress.
+    // Also transition any service whose required fields are now all answered
+    // from 'pending_onboarding' → 'ready_to_deliver' so the agency worklist
+    // reflects "data collected, ready for delivery/automation".
     const { data: clientServices } = await supabase
       .from("client_services")
-      .select("id, service_id, service:service_definitions(required_data_fields)")
+      .select("id, service_id, status, service:service_definitions(required_data_fields)")
       .eq("client_id", session.client_id)
       .eq("opted_out", false);
 
@@ -109,9 +112,11 @@ export async function POST(request: Request) {
     // Calculate if all required fields are answered
     let totalRequired = 0;
     let totalAnswered = 0;
+    const readyServiceIds: string[] = [];
 
     for (const cs of clientServices || []) {
-      const definition = (cs as Record<string, unknown>).service as ServiceDefinition | null;
+      const row = cs as Record<string, unknown>;
+      const definition = row.service as ServiceDefinition | null;
       const requiredFields = (definition?.required_data_fields || []).filter(
         (f: DataFieldDefinition) => f.required
       );
@@ -123,9 +128,33 @@ export async function POST(request: Request) {
           .map((r: { field_key: string; client_service_id: string | null }) => r.field_key)
       );
 
-      totalAnswered += requiredFields.filter((f: DataFieldDefinition) =>
+      const answeredCount = requiredFields.filter((f: DataFieldDefinition) =>
         answeredKeys.has(f.key)
       ).length;
+      totalAnswered += answeredCount;
+
+      // Service has collected all required fields AND is still sitting in
+      // pending_onboarding — promote it. We only advance from pending_onboarding
+      // so we never clobber a later state (in_progress, delivered) that some
+      // other automation (A2P manager, etc.) has already moved it to.
+      const currentStatus = row.status as string | null;
+      if (
+        requiredFields.length > 0 &&
+        answeredCount >= requiredFields.length &&
+        currentStatus === "pending_onboarding"
+      ) {
+        readyServiceIds.push(cs.id as string);
+      }
+    }
+
+    if (readyServiceIds.length > 0) {
+      await supabase
+        .from("client_services")
+        .update({
+          status: "ready_to_deliver",
+          updated_at: new Date().toISOString(),
+        })
+        .in("id", readyServiceIds);
     }
 
     const completionPct =
