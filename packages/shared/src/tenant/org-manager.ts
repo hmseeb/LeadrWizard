@@ -293,31 +293,61 @@ export async function getOrgCredentials(
   const row = org as Record<string, string | null>;
   const creds: OrgCredentials = {};
 
+  // Helper: wrap a decrypt call so a single stale/unreadable blob doesn't
+  // kill the entire function. The most common cause of failure here is an
+  // ENCRYPTION_KEY rotation — any credential still encrypted with the old
+  // key throws "Unsupported state or unable to authenticate data" from
+  // Node's AES-GCM decipher. Treating that as "cred not configured" lets
+  // callers fall back to env vars or a clear "please re-save this in
+  // Settings" error, instead of a cryptic crypto failure that takes down
+  // every automation that touches any org credential.
+  function tryDecrypt(label: string, value: string): string | null {
+    try {
+      return decrypt(value);
+    } catch (err) {
+      console.warn(
+        `[getOrgCredentials] failed to decrypt ${label} for org ${orgId} — likely an ENCRYPTION_KEY rotation; re-save this credential in Settings → Integrations:`,
+        err instanceof Error ? err.message : err
+      );
+      return null;
+    }
+  }
+
   // Twilio: all three fields required
   if (row.twilio_account_sid_encrypted && row.twilio_auth_token_encrypted && row.twilio_phone_number) {
-    creds.twilio = {
-      accountSid: decrypt(row.twilio_account_sid_encrypted),
-      authToken: decrypt(row.twilio_auth_token_encrypted),
-      phoneNumber: row.twilio_phone_number,
-    };
+    const sid = tryDecrypt("twilio.accountSid", row.twilio_account_sid_encrypted);
+    const token = tryDecrypt("twilio.authToken", row.twilio_auth_token_encrypted);
+    if (sid && token) {
+      creds.twilio = {
+        accountSid: sid,
+        authToken: token,
+        phoneNumber: row.twilio_phone_number,
+      };
+    }
   }
 
   // GHL: apiKey and locationId required; snapshotId optional but needed for IGNITE
   if (row.ghl_api_key_encrypted && row.ghl_location_id) {
-    creds.ghl = {
-      apiKey: decrypt(row.ghl_api_key_encrypted),
-      locationId: row.ghl_location_id,
-      companyId: row.ghl_company_id || undefined,
-      snapshotId: row.ghl_snapshot_id || undefined,
-    };
+    const apiKey = tryDecrypt("ghl.apiKey", row.ghl_api_key_encrypted);
+    if (apiKey) {
+      creds.ghl = {
+        apiKey,
+        locationId: row.ghl_location_id,
+        companyId: row.ghl_company_id || undefined,
+        snapshotId: row.ghl_snapshot_id || undefined,
+      };
+    }
   }
 
   // Vapi: both fields required
   if (row.vapi_api_key_encrypted && row.vapi_assistant_id) {
-    creds.vapi = {
-      apiKey: decrypt(row.vapi_api_key_encrypted),
-      assistantId: row.vapi_assistant_id,
-    };
+    const apiKey = tryDecrypt("vapi.apiKey", row.vapi_api_key_encrypted);
+    if (apiKey) {
+      creds.vapi = {
+        apiKey,
+        assistantId: row.vapi_assistant_id,
+      };
+    }
   }
 
   // ElevenLabs: agent ID only
@@ -329,19 +359,25 @@ export async function getOrgCredentials(
 
   // Vercel: token required for client website deploys
   if (row.vercel_token_encrypted) {
-    creds.vercel = {
-      token: decrypt(row.vercel_token_encrypted),
-      teamId: row.vercel_team_id || undefined,
-    };
+    const token = tryDecrypt("vercel.token", row.vercel_token_encrypted);
+    if (token) {
+      creds.vercel = {
+        token,
+        teamId: row.vercel_team_id || undefined,
+      };
+    }
   }
 
   // Anthropic: API key only. Used by the AI website builder and any future
   // LLM-backed automations. Stored per-org so we aren't forced to ship a
   // single shared platform key.
   if (row.anthropic_api_key_encrypted) {
-    creds.anthropic = {
-      apiKey: decrypt(row.anthropic_api_key_encrypted),
-    };
+    const apiKey = tryDecrypt("anthropic.apiKey", row.anthropic_api_key_encrypted);
+    if (apiKey) {
+      creds.anthropic = {
+        apiKey,
+      };
+    }
   }
 
   // Linked2Checkout: api key + webhook secret required
@@ -349,12 +385,22 @@ export async function getOrgCredentials(
     row.linked2checkout_api_key_encrypted &&
     row.linked2checkout_webhook_secret_encrypted
   ) {
-    creds.linked2checkout = {
-      apiKey: decrypt(row.linked2checkout_api_key_encrypted),
-      webhookSecret: decrypt(row.linked2checkout_webhook_secret_encrypted),
-      merchantId: row.linked2checkout_merchant_id || undefined,
-      productIdIgnite: row.linked2checkout_product_id_ignite || undefined,
-    };
+    const apiKey = tryDecrypt(
+      "linked2checkout.apiKey",
+      row.linked2checkout_api_key_encrypted
+    );
+    const webhookSecret = tryDecrypt(
+      "linked2checkout.webhookSecret",
+      row.linked2checkout_webhook_secret_encrypted
+    );
+    if (apiKey && webhookSecret) {
+      creds.linked2checkout = {
+        apiKey,
+        webhookSecret,
+        merchantId: row.linked2checkout_merchant_id || undefined,
+        productIdIgnite: row.linked2checkout_product_id_ignite || undefined,
+      };
+    }
   }
 
   return creds;
