@@ -4,7 +4,6 @@
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
   "outputDirectory": "dist",
   "framework": null,
-  "ignoreCommand": "cd ../.. && pnpm turbo-ignore @leadrwizard/widget",
   "headers": [
     {
       "source": "/widget.js",
