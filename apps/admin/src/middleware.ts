@@ -85,7 +85,8 @@ export async function middleware(request: NextRequest) {
     !request.nextUrl.pathname.startsWith("/api/cron") &&
     !request.nextUrl.pathname.startsWith("/api/signup") &&
     !request.nextUrl.pathname.startsWith("/api/widget") &&
-    !request.nextUrl.pathname.startsWith("/signup")
+    !request.nextUrl.pathname.startsWith("/signup") &&
+    !request.nextUrl.pathname.startsWith("/onboard")
   ) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
