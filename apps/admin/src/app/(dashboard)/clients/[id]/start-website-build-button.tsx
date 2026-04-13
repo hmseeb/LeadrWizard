@@ -2,28 +2,37 @@
 
 import { useTransition, useState } from "react";
 import { Globe, ExternalLink, AlertCircle } from "lucide-react";
-import { startWebsiteBuild } from "./actions";
+import { startWebsiteBuild, startGoosekitBuild } from "./actions";
 
 interface StartWebsiteBuildButtonProps {
   clientId: string;
   clientServiceId: string;
 }
 
+type Builder = "ai" | "goosekit";
+
 /**
- * Kicks off the AI website build for a `website-build` client_service.
+ * Kicks off a website build for a `website-build` client_service.
  *
- * Shown on the services card on the client detail page in any pre-delivered
- * state. On success we surface the preview URL inline so Greg can click
- * through to the Vercel deployment. If the builder hit the "no template
- * for this niche" branch we show an amber notice and leave the service in
- * `in_progress` — an escalation has already been opened on the server side.
+ * Two builders are supported side-by-side — Greg picks per-client:
+ * - **Start AI build** — the in-repo Claude+Vercel flow (`startWebsiteBuild`).
+ * - **Start Goose Kit build** — the external Goose Kit orchestrator
+ *   (`startGoosekitBuild`), which pushes to GitHub + deploys to Vercel
+ *   using the org's Goose Kit credentials.
+ *
+ * On success we surface the preview URL inline so Greg can click through
+ * to the deployment. If the AI builder hit the "no template for this niche"
+ * branch we show an amber notice and leave the service in `in_progress` —
+ * an escalation has already been opened on the server side.
  *
  * When the onboarding widget didn't capture the service-specific fields
  * the server needs (niche, services_offered), the first click fails with
  * a "Missing required fields" error. We then expand an inline manual-entry
  * form so Greg can type them in and retry without having to re-send the
  * onboarding link to the client. `phone`/`email`/`business_name` are
- * already on the `clients` row and never need manual entry.
+ * already on the `clients` row and never need manual entry. The same form
+ * works for both builders — both server actions use the same resolver and
+ * throw identical missing-field errors.
  */
 export function StartWebsiteBuildButton({
   clientId,
@@ -36,23 +45,29 @@ export function StartWebsiteBuildButton({
   const [showForm, setShowForm] = useState(false);
   const [niche, setNiche] = useState("");
   const [servicesOffered, setServicesOffered] = useState("");
+  const [lastBuilder, setLastBuilder] = useState<Builder | null>(null);
 
-  function doStart(overrides?: { niche?: string; servicesOffered?: string }) {
+  function doStart(
+    builder: Builder,
+    overrides?: { niche?: string; servicesOffered?: string }
+  ) {
     setError(null);
     setPreviewUrl(null);
     setNeedsTemplate(false);
+    setLastBuilder(builder);
     startTransition(async () => {
       try {
-        const result = await startWebsiteBuild(
-          clientId,
-          clientServiceId,
-          overrides
-        );
+        const result =
+          builder === "ai"
+            ? await startWebsiteBuild(clientId, clientServiceId, overrides)
+            : await startGoosekitBuild(clientId, clientServiceId, overrides);
         if (!result.ok) {
           setError(result.error);
           // If the failure was specifically about niche/services_offered
           // (the two fields with no fallback source), expand the manual-
-          // entry form so Greg can type them in and retry.
+          // entry form so Greg can type them in and retry. Both builders
+          // share the same resolver so the error message shape is
+          // identical.
           if (/niche|services_offered/.test(result.error)) {
             setShowForm(true);
           }
@@ -67,18 +82,32 @@ export function StartWebsiteBuildButton({
     });
   }
 
-  function handleButtonClick() {
+  function handleBuilderClick(builder: Builder) {
     if (showForm) {
-      doStart({
+      doStart(builder, {
         niche: niche.trim(),
         servicesOffered: servicesOffered.trim(),
       });
     } else {
-      doStart();
+      doStart(builder);
     }
   }
 
-  const formReady = niche.trim().length > 0 && servicesOffered.trim().length > 0;
+  const formReady =
+    niche.trim().length > 0 && servicesOffered.trim().length > 0;
+  const disabled = isPending || (showForm && !formReady);
+
+  const aiLabel = isPending && lastBuilder === "ai"
+    ? "Building…"
+    : showForm
+      ? "Start AI with these values"
+      : "Start AI build";
+
+  const gooseLabel = isPending && lastBuilder === "goosekit"
+    ? "Building…"
+    : showForm
+      ? "Start Goose Kit with these values"
+      : "Start Goose Kit build";
 
   return (
     <div className="flex w-full flex-col items-stretch gap-2">
@@ -116,19 +145,24 @@ export function StartWebsiteBuildButton({
           </div>
         </div>
       )}
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
         <button
           type="button"
-          onClick={handleButtonClick}
-          disabled={isPending || (showForm && !formReady)}
+          onClick={() => handleBuilderClick("ai")}
+          disabled={disabled}
           className="inline-flex items-center gap-1 rounded-md border border-indigo-700/50 bg-indigo-900/20 px-2 py-1 text-xs font-medium text-indigo-300 hover:border-indigo-500/50 hover:bg-indigo-900/40 disabled:opacity-50"
         >
           <Globe className="h-3 w-3" />
-          {isPending
-            ? "Building…"
-            : showForm
-              ? "Start build with these values"
-              : "Start website build"}
+          {aiLabel}
+        </button>
+        <button
+          type="button"
+          onClick={() => handleBuilderClick("goosekit")}
+          disabled={disabled}
+          className="inline-flex items-center gap-1 rounded-md border border-purple-700/50 bg-purple-900/20 px-2 py-1 text-xs font-medium text-purple-300 hover:border-purple-500/50 hover:bg-purple-900/40 disabled:opacity-50"
+        >
+          <Globe className="h-3 w-3" />
+          {gooseLabel}
         </button>
       </div>
       {previewUrl && (
@@ -136,7 +170,11 @@ export function StartWebsiteBuildButton({
           href={previewUrl}
           target="_blank"
           rel="noreferrer"
-          className="flex items-center justify-end gap-1 text-[10px] text-indigo-300 hover:text-indigo-200"
+          className={`flex items-center justify-end gap-1 text-[10px] ${
+            lastBuilder === "goosekit"
+              ? "text-purple-300 hover:text-purple-200"
+              : "text-indigo-300 hover:text-indigo-200"
+          }`}
         >
           <ExternalLink className="h-2.5 w-2.5" />
           Preview

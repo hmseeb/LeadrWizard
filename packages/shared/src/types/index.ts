@@ -376,6 +376,12 @@ export interface OrgCredentials {
   anthropic?: {
     apiKey: string;
   };
+  goosekit?: {
+    githubPat: string;
+    vercelToken: string;
+    claudeToken: string;
+    baseUrl?: string;
+  };
   linked2checkout?: {
     apiKey: string;
     webhookSecret: string;
