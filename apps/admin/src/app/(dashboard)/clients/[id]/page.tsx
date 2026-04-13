@@ -119,17 +119,20 @@ export default async function ClientDetailPage({
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           {services?.map((cs) => {
             const service = cs.service as { name: string; slug: string } | null;
-            const canMarkDelivered =
-              !cs.opted_out &&
-              cs.status !== "delivered" &&
-              (cs.status === "ready_to_deliver" || cs.status === "in_progress");
-            // Show the "Start website build" button only for the website-build
-            // service and only when the onboarding data has been collected
-            // (ready_to_deliver). Mark Delivered is always the manual fallback.
+            // Mark Delivered is the universal manual fallback. It's shown
+            // for any non-delivered, non-opted-out service — including
+            // `pending_onboarding` — so Greg is never stranded when the
+            // automated state transition doesn't fire (e.g. onboarding
+            // field-key mismatch, stuck state, etc.).
+            const canMarkDelivered = !cs.opted_out && cs.status !== "delivered";
+            // Start Website Build is shown for the website-build service
+            // in any pre-delivered state. The server action itself will
+            // tell us which required onboarding fields are missing if
+            // data isn't ready, so the button is safe to surface early.
             const canStartWebsiteBuild =
               !cs.opted_out &&
               service?.slug === "website-build" &&
-              cs.status === "ready_to_deliver";
+              cs.status !== "delivered";
             return (
               <div key={cs.id} className="rounded-lg border bg-white p-4">
                 <div className="flex items-center justify-between gap-3">
