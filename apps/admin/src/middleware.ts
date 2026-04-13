@@ -108,6 +108,9 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // Skip middleware for Next internals, static assets, and any top-level
+    // JS file (notably /widget.js which we serve from public/). Auth guard
+    // does not apply to these — they're public static files.
+    "/((?!_next/static|_next/image|favicon.ico|widget\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|js|mjs|map)$).*)",
   ],
 };

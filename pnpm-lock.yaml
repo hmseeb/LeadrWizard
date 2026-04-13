@@ -54,6 +54,9 @@ importers:
       '@leadrwizard/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
+      '@leadrwizard/widget':
+        specifier: workspace:*
+        version: link:../widget
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.15
