@@ -172,6 +172,15 @@ export async function startManualOnboarding(formData: FormData) {
     sample_messages: sampleMessages,
   });
 
+  // Transition A2P service from pending_onboarding → in_progress now that it
+  // has actually been submitted to Twilio and is awaiting carrier approval.
+  // The a2p-manager's checkA2PStatus task will eventually flip it to 'delivered'
+  // when the campaign is VERIFIED.
+  await supabase
+    .from("client_services")
+    .update({ status: "in_progress", updated_at: new Date().toISOString() })
+    .eq("id", a2pService.id);
+
   // 5. Pre-fill session_responses for the A2P service so the widget does not
   //    re-ask these questions if this package also contains non-A2P services.
   const a2pResponses: Array<{
