@@ -4,6 +4,7 @@ import { CopyOnboardingLink } from "./copy-onboarding-link";
 import { GhlSubaccountPanel } from "./ghl-subaccount-panel";
 import { MarkDeliveredButton } from "./mark-delivered-button";
 import { StartWebsiteBuildButton } from "./start-website-build-button";
+import { DeleteClientPanel } from "./delete-client-panel";
 
 function serviceStatusBadgeClass(status: string, optedOut: boolean): string {
   if (optedOut) return "bg-zinc-800/80 text-zinc-400 border border-zinc-700";
@@ -255,6 +256,14 @@ export default async function ClientDetailPage({
           </div>
         </section>
       )}
+
+      {/* Danger Zone — hard-delete the client + cascading related rows */}
+      <DeleteClientPanel
+        clientId={id}
+        clientName={client.name}
+        businessName={client.business_name ?? null}
+        clientEmail={client.email ?? null}
+      />
     </div>
   );
 }
