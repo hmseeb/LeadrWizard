@@ -18,6 +18,25 @@ interface GHLLocation {
   state: string | null;
 }
 
+/**
+ * Shape returned by GET /api/ghl/locations/[locationId]. The search endpoint
+ * (GET /api/ghl/locations) only returns id/name/email/phone/city/state;
+ * the per-location endpoint is what provides the full address + zip
+ * needed to autofill the A2P business fields.
+ */
+interface GHLLocationDetails {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  country: string | null;
+  website: string | null;
+}
+
 interface NewClientFormProps {
   packages: PackageOption[];
   action: (formData: FormData) => Promise<void>;
@@ -105,6 +124,16 @@ export function NewClientForm({ packages, action }: NewClientFormProps) {
   const [ghlLoading, setGhlLoading] = useState(true);
   const [ghlError, setGhlError] = useState<string | null>(null);
 
+  // Search-first GHL state: Greg types a query, we filter the loaded list
+  // client-side, he clicks a match, and we autofill the rest of the form
+  // from GHL's per-location details endpoint.
+  const [ghlSearch, setGhlSearch] = useState("");
+  const [selectedGhl, setSelectedGhl] = useState<GHLLocationDetails | null>(
+    null
+  );
+  const [autofillLoading, setAutofillLoading] = useState(false);
+  const [autofillError, setAutofillError] = useState<string | null>(null);
+
   useEffect(() => {
     fetch("/api/ghl/locations")
       .then((res) => res.json())
@@ -118,6 +147,90 @@ export function NewClientForm({ packages, action }: NewClientFormProps) {
       .catch(() => setGhlError("Failed to load GHL locations"))
       .finally(() => setGhlLoading(false));
   }, []);
+
+  /**
+   * Write a value into an uncontrolled input/select on the form by name.
+   * This works because the inputs don't have `value=` props, so React
+   * won't clobber the DOM value on re-render, and form submit reads from
+   * the DOM directly via FormData.
+   */
+  function setFormField(name: string, value: string) {
+    if (!formRef) return;
+    const el = formRef.elements.namedItem(name) as
+      | HTMLInputElement
+      | HTMLSelectElement
+      | HTMLTextAreaElement
+      | null;
+    if (el) el.value = value;
+  }
+
+  /**
+   * Fetches the full details for a selected GHL subaccount and autofills
+   * every form field we can derive from it. Leaves EIN, package, and
+   * message types untouched because GHL doesn't carry that data.
+   */
+  async function selectGhlLocation(loc: GHLLocation) {
+    setAutofillLoading(true);
+    setAutofillError(null);
+    try {
+      const res = await fetch(`/api/ghl/locations/${loc.id}`);
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Failed to load subaccount details");
+      }
+      const d = data.location as GHLLocationDetails;
+      setSelectedGhl(d);
+
+      // Contact section
+      setFormField("customer_email", d.email || "");
+      setFormField("customer_phone", d.phone || "");
+
+      // Business section — legal name matches the GHL subaccount name,
+      // which is what Greg registers in GHL as the client's business.
+      setFormField("legal_business_name", d.name || "");
+      setFormField("business_phone", d.phone || "");
+      setFormField("business_address", d.address || "");
+      setFormField("business_city", d.city || "");
+      // Normalize state to the 2-letter code the <select> expects.
+      const stateCode = (d.state || "").trim().toUpperCase().slice(0, 2);
+      if (stateCode && US_STATES.includes(stateCode)) {
+        setFormField("business_state", stateCode);
+      }
+      setFormField("business_zip", d.postalCode || "");
+
+      // Hidden ghl_location_id field used by the server action.
+      setFormField("ghl_location_id", d.id);
+    } catch (err) {
+      setAutofillError(
+        err instanceof Error ? err.message : "Failed to load subaccount"
+      );
+    } finally {
+      setAutofillLoading(false);
+    }
+  }
+
+  function clearGhlSelection() {
+    setSelectedGhl(null);
+    setAutofillError(null);
+    setFormField("ghl_location_id", "");
+    // Intentionally NOT clearing the autofilled business/contact fields —
+    // Greg may want to tweak them after picking a subaccount, so we leave
+    // whatever he's typed in place. He can manually clear if needed.
+  }
+
+  // Client-side filter over the loaded GHL list. We fetched up to 100
+  // locations on mount; searching in memory is plenty fast and avoids
+  // a round-trip to GHL on every keystroke.
+  const filteredGhlLocations = ghlLocations.filter((loc) => {
+    if (!ghlSearch.trim()) return true;
+    const q = ghlSearch.toLowerCase().trim();
+    return (
+      loc.name.toLowerCase().includes(q) ||
+      (loc.email || "").toLowerCase().includes(q) ||
+      (loc.phone || "").toLowerCase().includes(q) ||
+      (loc.city || "").toLowerCase().includes(q)
+    );
+  });
 
   const [error, formAction, isPending] = useActionState(
     async (_prevState: string | null, formData: FormData) => {
@@ -299,26 +412,26 @@ export function NewClientForm({ packages, action }: NewClientFormProps) {
           {/* GHL Integration */}
           <div className="rounded-xl border border-zinc-800 bg-surface p-6">
             <h2 className="text-lg font-semibold text-zinc-50">6. Post-Approval: GHL Phone Push</h2>
-            {(() => {
-              const selectedLocationId = getFormValue("ghl_location_id");
-              const selectedLocation = ghlLocations.find((l) => l.id === selectedLocationId);
-              if (selectedLocation) {
-                return (
-                  <div className="mt-3 space-y-2">
-                    <ReviewRow label="GHL Subaccount" value={selectedLocation.name} />
-                    <ReviewRow label="Location ID" value={selectedLocation.id} />
-                    <p className="mt-2 text-sm text-zinc-400">
-                      After campaign verification, the Twilio phone number + messaging service will be automatically pushed to this subaccount.
-                    </p>
-                  </div>
-                );
-              }
-              return (
-                <p className="mt-2 text-sm text-zinc-500">
-                  No GHL subaccount selected — phone number will not be auto-pushed. You can add it manually later.
+            {selectedGhl ? (
+              <div className="mt-3 space-y-2">
+                <ReviewRow
+                  label="GHL Subaccount"
+                  value={selectedGhl.name || "Unnamed subaccount"}
+                />
+                <ReviewRow label="Location ID" value={selectedGhl.id} />
+                <p className="mt-2 text-sm text-zinc-400">
+                  After campaign verification, the Twilio phone number +
+                  messaging service will be automatically pushed to this
+                  subaccount.
                 </p>
-              );
-            })()}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-zinc-500">
+                No GHL subaccount selected — phone number will not be
+                auto-pushed. You can link one manually from the client
+                detail page after creation.
+              </p>
+            )}
           </div>
 
           {/* Actions */}
@@ -348,6 +461,161 @@ export function NewClientForm({ packages, action }: NewClientFormProps) {
             {error}
           </div>
         )}
+
+        {/* Hidden field carrying the selected GHL location ID through to
+            the server action. Populated by selectGhlLocation() above, or
+            left empty if Greg skips the search-first flow. */}
+        <input type="hidden" name="ghl_location_id" defaultValue="" />
+
+        {/* Section 0: Search GHL Subaccount */}
+        <div className="rounded-xl border border-zinc-800 bg-surface p-6">
+          <h2 className="text-lg font-semibold text-zinc-50">
+            Start from an Existing GHL Subaccount{" "}
+            <span className="text-xs font-normal text-zinc-500">
+              (optional)
+            </span>
+          </h2>
+          <p className="mt-1 text-sm text-zinc-400">
+            Search your GoHighLevel agency to auto-fill this form from an
+            existing subaccount, or skip and fill everything manually below.
+          </p>
+
+          {selectedGhl ? (
+            <div className="mt-4 rounded-lg border border-emerald-800/60 bg-emerald-950/30 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300">
+                      ✓
+                    </span>
+                    <span className="font-medium text-zinc-100">
+                      {selectedGhl.name || "Unnamed subaccount"}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 space-y-0.5 text-xs text-zinc-400">
+                    {selectedGhl.email && <div>{selectedGhl.email}</div>}
+                    {selectedGhl.phone && <div>{selectedGhl.phone}</div>}
+                    {(selectedGhl.address ||
+                      selectedGhl.city ||
+                      selectedGhl.state) && (
+                      <div>
+                        {[
+                          selectedGhl.address,
+                          selectedGhl.city,
+                          selectedGhl.state,
+                          selectedGhl.postalCode,
+                        ]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </div>
+                    )}
+                    <div className="pt-1 font-mono text-[10px] text-zinc-500">
+                      Location ID: {selectedGhl.id}
+                    </div>
+                  </div>
+                  <p className="mt-2 text-xs text-emerald-300/80">
+                    Contact, business, and address fields below have been
+                    pre-filled from this subaccount. You can still edit them
+                    before submitting.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={clearGhlSelection}
+                  className="shrink-0 rounded-md border border-zinc-700 bg-zinc-800/60 px-2.5 py-1 text-xs text-zinc-300 hover:border-zinc-600 hover:bg-zinc-800"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4">
+              {ghlLoading ? (
+                <div className="text-sm text-zinc-500">
+                  Loading GHL subaccounts…
+                </div>
+              ) : ghlError ? (
+                <div className="rounded-lg border border-amber-500/20 bg-amber-600/10 p-3 text-sm text-amber-400">
+                  {ghlError}. You can still fill the form manually below and
+                  link a GHL subaccount later.
+                </div>
+              ) : ghlLocations.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-zinc-700 p-4 text-center text-sm text-zinc-500">
+                  No GHL subaccounts found under your agency. Fill the form
+                  manually below.
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={ghlSearch}
+                    onChange={(e) => setGhlSearch(e.target.value)}
+                    placeholder="Search by business name, email, phone, or city…"
+                    className={inputClass}
+                  />
+                  {autofillError && (
+                    <div className="mt-2 rounded-md border border-rose-500/20 bg-rose-600/10 p-2 text-xs text-rose-400">
+                      {autofillError}
+                    </div>
+                  )}
+                  <div className="mt-3 max-h-72 space-y-1.5 overflow-y-auto pr-1">
+                    {filteredGhlLocations.length === 0 ? (
+                      <p className="py-3 text-center text-xs text-zinc-500">
+                        No subaccounts match &ldquo;{ghlSearch}&rdquo;.
+                      </p>
+                    ) : (
+                      filteredGhlLocations.slice(0, 25).map((loc) => (
+                        <button
+                          key={loc.id}
+                          type="button"
+                          disabled={autofillLoading}
+                          onClick={() => selectGhlLocation(loc)}
+                          className="flex w-full items-start justify-between gap-3 rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 text-left transition-colors hover:border-brand-500/40 hover:bg-brand-600/10 disabled:opacity-50"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm font-medium text-zinc-100">
+                              {loc.name}
+                            </div>
+                            <div className="mt-0.5 truncate text-xs text-zinc-400">
+                              {[loc.email, loc.phone]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </div>
+                            {(loc.city || loc.state) && (
+                              <div className="mt-0.5 truncate text-xs text-zinc-500">
+                                {[loc.city, loc.state]
+                                  .filter(Boolean)
+                                  .join(", ")}
+                              </div>
+                            )}
+                          </div>
+                          <span className="shrink-0 text-xs text-zinc-500">
+                            Use &rarr;
+                          </span>
+                        </button>
+                      ))
+                    )}
+                    {filteredGhlLocations.length > 25 && (
+                      <p className="py-2 text-center text-[10px] text-zinc-500">
+                        Showing first 25 matches. Keep typing to narrow down.
+                      </p>
+                    )}
+                  </div>
+                  {autofillLoading && (
+                    <p className="mt-2 text-xs text-zinc-500">
+                      Loading subaccount details…
+                    </p>
+                  )}
+                </>
+              )}
+              <p className="mt-3 text-xs text-zinc-500">
+                Not listed here? Skip this step and fill the client details
+                manually below. You can link a GHL subaccount later from the
+                client detail page.
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* Section 1: Client Contact Info */}
         <div className="rounded-xl border border-zinc-800 bg-surface p-6">
@@ -470,37 +738,7 @@ export function NewClientForm({ packages, action }: NewClientFormProps) {
           </p>
         </div>
 
-        {/* Section 5: GHL Subaccount */}
-        <div className="rounded-xl border border-zinc-800 bg-surface p-6">
-          <h2 className="text-lg font-semibold text-zinc-50">GHL Subaccount</h2>
-          <p className="mt-1 text-sm text-zinc-400">
-            Select the client&apos;s GoHighLevel subaccount. The verified Twilio number will be pushed here after A2P approval.
-          </p>
-          <div className="mt-4">
-            {ghlLoading ? (
-              <div className="text-sm text-zinc-500">Loading GHL locations...</div>
-            ) : ghlError ? (
-              <div className="rounded-lg border border-amber-500/20 bg-amber-600/10 p-3 text-sm text-amber-400">
-                {ghlError}. You can still submit — the phone number can be added to GHL manually later.
-              </div>
-            ) : ghlLocations.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-zinc-700 p-4 text-center text-sm text-zinc-500">
-                No GHL locations found. The phone number can be added manually after A2P approval.
-              </div>
-            ) : (
-              <select name="ghl_location_id" className={inputClass}>
-                <option value="">None — skip GHL push</option>
-                {ghlLocations.map((loc) => (
-                  <option key={loc.id} value={loc.id}>
-                    {loc.name}{loc.city && loc.state ? ` (${loc.city}, ${loc.state})` : ""}{loc.phone ? ` — ${loc.phone}` : ""}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-        </div>
-
-        {/* Section 6: Package Selection */}
+        {/* Section 5: Package Selection */}
         <div className="rounded-xl border border-zinc-800 bg-surface p-6">
           <h2 className="text-lg font-semibold text-zinc-50">Select Package</h2>
           <p className="mt-1 text-sm text-zinc-400">

@@ -4,6 +4,7 @@ import { CopyOnboardingLink } from "./copy-onboarding-link";
 import { GhlSubaccountPanel } from "./ghl-subaccount-panel";
 import { MarkDeliveredButton } from "./mark-delivered-button";
 import { StartWebsiteBuildButton } from "./start-website-build-button";
+import { DeleteClientPanel } from "./delete-client-panel";
 
 function serviceStatusBadgeClass(status: string, optedOut: boolean): string {
   if (optedOut) return "bg-zinc-800/80 text-zinc-400 border border-zinc-700";
@@ -108,8 +109,9 @@ export default async function ClientDetailPage({
         )}
       </div>
 
-      {/* Onboarding Link — show for any non-completed session so agency can manually share it */}
-      {sessions && sessions.length > 0 && sessions[0].status !== "completed" && (
+      {/* Onboarding Link — always shown when a session exists so the agency
+          can re-share it even after the client has already completed. */}
+      {sessions && sessions.length > 0 && (
         <section className="mt-6">
           <CopyOnboardingLink sessionId={sessions[0].id} />
         </section>
@@ -255,6 +257,14 @@ export default async function ClientDetailPage({
           </div>
         </section>
       )}
+
+      {/* Danger Zone — hard-delete the client + cascading related rows */}
+      <DeleteClientPanel
+        clientId={id}
+        clientName={client.name}
+        businessName={client.business_name ?? null}
+        clientEmail={client.email ?? null}
+      />
     </div>
   );
 }

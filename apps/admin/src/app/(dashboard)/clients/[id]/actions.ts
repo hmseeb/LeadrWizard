@@ -661,3 +661,98 @@ export async function startGoosekitBuild(
     };
   }
 }
+
+/**
+ * Hard-deletes a client from the database. All related rows in
+ * `client_services`, `client_packages`, `onboarding_sessions`,
+ * `interaction_log`, `outreach_queue`, `escalations`, and `service_tasks`
+ * cascade automatically via the foreign keys set in the initial schema.
+ *
+ * This action is gated behind a "type the client's email to confirm" UX
+ * on the client detail page Danger Zone, so the server still requires the
+ * caller to pass the email — if it doesn't match the row on file, we
+ * refuse the delete. That guards against:
+ *  - Stale / replayed clicks (different client row in the meantime)
+ *  - Accidental API invocations without the confirmation UI in between
+ *
+ * We do NOT touch external systems here: the GHL subaccount, Twilio
+ * number, and any Vercel deployments created by the website builder are
+ * all left alone. Greg can clean those up manually if needed. Rationale:
+ * those resources often belong to the client (not the agency), and
+ * blowing them away on a hasty click would be much worse than leaving
+ * orphaned rows inside the agency's DB.
+ *
+ * Returns `{ ok: true }` on success or `{ ok: false, error }` on failure,
+ * same pattern as the other server actions in this file so the calling
+ * component can surface the error inline instead of crashing.
+ */
+export async function deleteClient(
+  clientId: string,
+  confirmationEmail: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const { supabase, orgId } = await getAuthedOrg();
+
+    // --- 1. Load the client row and verify scope ---
+    const { data: client, error: loadError } = await supabase
+      .from("clients")
+      .select("id, org_id, name, email, business_name")
+      .eq("id", clientId)
+      .single();
+
+    if (loadError || !client) {
+      throw new Error("Client not found");
+    }
+
+    const row = client as {
+      id: string;
+      org_id: string;
+      name: string;
+      email: string | null;
+      business_name: string | null;
+    };
+
+    if (row.org_id !== orgId) {
+      throw new Error("Insufficient permissions");
+    }
+
+    // --- 2. Email confirmation must match exactly (case-insensitive) ---
+    const expected = (row.email || "").trim().toLowerCase();
+    const provided = (confirmationEmail || "").trim().toLowerCase();
+
+    if (!expected) {
+      throw new Error(
+        "This client has no email on file — cannot confirm delete. Contact support to force-remove."
+      );
+    }
+    if (provided !== expected) {
+      throw new Error(
+        "Confirmation email does not match. Type the client's exact email address to confirm deletion."
+      );
+    }
+
+    // --- 3. Delete the client row. FK cascades handle everything else. ---
+    const { error: deleteError } = await supabase
+      .from("clients")
+      .delete()
+      .eq("id", clientId);
+
+    if (deleteError) {
+      throw new Error(`Failed to delete client: ${deleteError.message}`);
+    }
+
+    // --- 4. Invalidate caches for the lists that this client appeared on ---
+    revalidatePath("/clients");
+    revalidatePath("/onboardings");
+    revalidatePath("/dashboard");
+
+    return { ok: true };
+  } catch (err) {
+    console.error("[deleteClient] failed:", err);
+    return {
+      ok: false,
+      error:
+        err instanceof Error ? err.message : "Unknown error deleting client",
+    };
+  }
+}
