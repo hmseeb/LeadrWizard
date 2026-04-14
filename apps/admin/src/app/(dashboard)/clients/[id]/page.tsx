@@ -4,6 +4,7 @@ import { CopyOnboardingLink } from "./copy-onboarding-link";
 import { GhlSubaccountPanel } from "./ghl-subaccount-panel";
 import { MarkDeliveredButton } from "./mark-delivered-button";
 import { StartWebsiteBuildButton } from "./start-website-build-button";
+import { EditWebsitePanel } from "./edit-website-panel";
 import { DeleteClientPanel } from "./delete-client-panel";
 
 function serviceStatusBadgeClass(status: string, optedOut: boolean): string {
@@ -168,6 +169,10 @@ export default async function ClientDetailPage({
                       <StartWebsiteBuildButton
                         clientId={id}
                         clientServiceId={cs.id}
+                        initialGoosekitJobId={cs.goosekit_job_id ?? null}
+                        initialGoosekitStatus={cs.goosekit_job_status ?? null}
+                        initialGoosekitLiveUrl={cs.goosekit_live_url ?? null}
+                        initialGoosekitError={cs.goosekit_error ?? null}
                       />
                     )}
                     {canMarkDelivered && (
@@ -188,6 +193,32 @@ export default async function ClientDetailPage({
           )}
         </div>
       </section>
+
+      {/* Goose Kit edit panels — one per website-build service that has a
+          successful Goose Kit build on file. Rendered as a dedicated
+          section below the service grid because the textarea needs more
+          width than a `md:grid-cols-2` cell can comfortably give it. */}
+      {services
+        ?.filter((cs) => {
+          const service = cs.service as { slug: string } | null;
+          return (
+            !cs.opted_out &&
+            service?.slug === "website-build" &&
+            !!cs.goosekit_live_url
+          );
+        })
+        .map((cs) => (
+          <section key={`edit-${cs.id}`} className="mt-6">
+            <EditWebsitePanel
+              clientId={id}
+              clientServiceId={cs.id}
+              liveUrl={cs.goosekit_live_url ?? null}
+              initialGoosekitJobId={cs.goosekit_job_id ?? null}
+              initialGoosekitStatus={cs.goosekit_job_status ?? null}
+              initialGoosekitError={cs.goosekit_error ?? null}
+            />
+          </section>
+        ))}
 
       {/* Interaction Timeline */}
       <section className="mt-8">

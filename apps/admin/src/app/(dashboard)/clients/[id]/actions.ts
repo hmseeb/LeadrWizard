@@ -3,14 +3,21 @@
 import { createSupabaseServerClient, createSupabaseServiceClient } from "@/lib/supabase-server";
 import { getUserOrg, getOrgCredentials } from "@leadrwizard/shared/tenant";
 import {
-  initiateWebsiteBuild,
-  findNicheTemplate,
-  initiateGoosekitBuild,
+  getGoosekitJobStatus,
+  editGoosekitSite,
+  GOOSEKIT_TERMINAL_STATUSES,
+  GOOSEKIT_STATUS_LABELS,
 } from "@leadrwizard/shared/automations";
 import type {
-  WebsiteBuildData,
-  GoosekitBuildInput,
+  GoosekitJobStatus,
 } from "@leadrwizard/shared/automations";
+import {
+  resolveWebsiteBuildInput,
+  triggerAiWebsiteBuild,
+  triggerGoosekitWebsiteBuild,
+  type StartWebsiteBuildOverrides as SharedStartWebsiteBuildOverrides,
+} from "@/lib/website-build-trigger";
+import { deriveRepoName } from "@leadrwizard/shared/automations";
 import { revalidatePath } from "next/cache";
 
 async function getAuthedOrg() {
@@ -233,132 +240,11 @@ export async function markClientServiceDelivered(
  * else on `clients` or `session_responses` provides them — so the
  * client detail page collects them via a small inline form when the
  * widget data is missing.
- */
-export interface StartWebsiteBuildOverrides {
-  niche?: string;
-  servicesOffered?: string;
-  tagline?: string;
-  primaryColor?: string;
-  aboutText?: string;
-}
-
-/**
- * Shared "resolve the website-build inputs from session_responses + clients
- * row + overrides, then check for missing required fields" helper. Used by
- * both `startWebsiteBuild` (in-repo AI builder) and `startGoosekitBuild`
- * (Goose Kit alternative) so they can't drift on the missing-field check.
  *
- * Throws if any of the five required fields (business_name, niche, phone,
- * email, services_offered) can't be resolved through the fallback chain —
- * the thrown message is formatted to help the client button UI decide
- * whether to expand its inline manual-entry form.
+ * Re-exported from the shared trigger module so consumers of this
+ * actions file don't have to know the helper was extracted.
  */
-interface ResolvedWebsiteBuildInput {
-  business_name: string;
-  niche: string;
-  phone: string;
-  email: string;
-  services_offered: string;
-  tagline?: string;
-  primary_color?: string;
-  logo_url?: string;
-  address?: string;
-  about_text?: string;
-  existing_website?: string;
-  /** Parsed services list for the in-repo builder's array-shaped field. */
-  services_offered_list: string[];
-}
-
-async function resolveWebsiteBuildInput(
-  supabase: ReturnType<typeof createSupabaseServiceClient>,
-  clientId: string,
-  clientServiceId: string,
-  overrides?: StartWebsiteBuildOverrides
-): Promise<ResolvedWebsiteBuildInput> {
-  // 1. Pull onboarding answers scoped to this client_service
-  const { data: responses } = await supabase
-    .from("session_responses")
-    .select("field_key, field_value")
-    .eq("client_service_id", clientServiceId);
-
-  const answers: Record<string, string> = {};
-  for (const r of responses || []) {
-    const row = r as { field_key: string; field_value: string };
-    answers[row.field_key] = row.field_value;
-  }
-
-  // 2. Pull the client row for fallback contact/business details. phone,
-  // email, and business_name live here from provisioning time, so the
-  // build should never fail for lack of them even if the widget missed
-  // them.
-  const { data: clientRow } = await supabase
-    .from("clients")
-    .select("name, business_name, email, phone")
-    .eq("id", clientId)
-    .single();
-
-  const fallbackClient = (clientRow || {}) as {
-    name?: string | null;
-    business_name?: string | null;
-    email?: string | null;
-    phone?: string | null;
-  };
-
-  // 3. Resolve each required field via: overrides → session_responses →
-  // clients row. Overrides only take precedence for fields with no other
-  // reliable source (niche, services_offered, and a few optional ones) —
-  // we never let the overrides clobber a widget-captured business_name,
-  // phone, or email.
-  const business_name =
-    answers.business_name?.trim() ||
-    fallbackClient.business_name?.trim() ||
-    fallbackClient.name?.trim() ||
-    "";
-  const niche = overrides?.niche?.trim() || answers.niche?.trim() || "";
-  const phone =
-    answers.phone?.trim() || fallbackClient.phone?.trim() || "";
-  const email =
-    answers.email?.trim() || fallbackClient.email?.trim() || "";
-  const services_offered =
-    overrides?.servicesOffered?.trim() ||
-    answers.services_offered?.trim() ||
-    "";
-
-  const missing: string[] = [];
-  if (!business_name) missing.push("business_name");
-  if (!niche) missing.push("niche");
-  if (!phone) missing.push("phone");
-  if (!email) missing.push("email");
-  if (!services_offered) missing.push("services_offered");
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing required fields for website build: ${missing.join(", ")}. ` +
-        `Fields not captured during onboarding can be entered manually below.`
-    );
-  }
-
-  const services_offered_list = services_offered
-    .split(/[\n,;]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  return {
-    business_name,
-    niche,
-    phone,
-    email,
-    services_offered,
-    services_offered_list,
-    tagline: overrides?.tagline?.trim() || answers.tagline || undefined,
-    primary_color:
-      overrides?.primaryColor?.trim() || answers.primary_color || undefined,
-    logo_url: answers.logo_url || undefined,
-    address: answers.address || undefined,
-    about_text:
-      overrides?.aboutText?.trim() || answers.about_text || undefined,
-    existing_website: answers.existing_website || undefined,
-  };
-}
+export type StartWebsiteBuildOverrides = SharedStartWebsiteBuildOverrides;
 
 export async function startWebsiteBuild(
   clientId: string,
@@ -369,141 +255,74 @@ export async function startWebsiteBuild(
   | { ok: false; error: string }
 > {
   try {
-  const { supabase, orgId } = await getAuthedOrg();
+    const { supabase, orgId } = await getAuthedOrg();
 
-  // --- 1. Scope + state check on the client_service row ---
-  const { data: cs } = await supabase
-    .from("client_services")
-    .select(
-      "id, client_id, status, opted_out, client:clients(org_id), service:service_definitions(slug, name)"
-    )
-    .eq("id", clientServiceId)
-    .single();
+    // --- 1. Scope + state check on the client_service row ---
+    const { data: cs } = await supabase
+      .from("client_services")
+      .select(
+        "id, client_id, status, opted_out, client:clients(org_id), service:service_definitions(slug, name)"
+      )
+      .eq("id", clientServiceId)
+      .single();
 
-  if (!cs) throw new Error("Service not found");
-  const csRow = cs as unknown as {
-    id: string;
-    client_id: string;
-    status: string;
-    opted_out: boolean;
-    client: { org_id: string } | null;
-    service: { slug: string; name: string } | null;
-  };
+    if (!cs) throw new Error("Service not found");
+    const csRow = cs as unknown as {
+      id: string;
+      client_id: string;
+      status: string;
+      opted_out: boolean;
+      client: { org_id: string } | null;
+      service: { slug: string; name: string } | null;
+    };
 
-  if (csRow.client?.org_id !== orgId) throw new Error("Insufficient permissions");
-  if (csRow.client_id !== clientId) throw new Error("Client mismatch");
-  if (csRow.opted_out) throw new Error("Client has opted out of this service");
-  if (csRow.service?.slug !== "website-build") {
-    throw new Error(
-      `startWebsiteBuild called on non-website-build service: ${csRow.service?.slug}`
+    if (csRow.client?.org_id !== orgId) throw new Error("Insufficient permissions");
+    if (csRow.client_id !== clientId) throw new Error("Client mismatch");
+    if (csRow.opted_out) throw new Error("Client has opted out of this service");
+    if (csRow.service?.slug !== "website-build") {
+      throw new Error(
+        `startWebsiteBuild called on non-website-build service: ${csRow.service?.slug}`
+      );
+    }
+    if (csRow.status === "delivered") {
+      throw new Error("Website is already marked delivered");
+    }
+
+    // --- 2. Resolve inputs via the shared helper ---
+    const resolved = await resolveWebsiteBuildInput(
+      supabase,
+      clientId,
+      clientServiceId,
+      overrides
     );
-  }
-  if (csRow.status === "delivered") {
-    throw new Error("Website is already marked delivered");
-  }
 
-  // --- 2. Resolve the inputs via the shared helper (session_responses →
-  // clients row → overrides, with missing-field check). This is shared
-  // with startGoosekitBuild so the two builders can't drift on the
-  // missing-field error message that drives the button's inline form.
-  const resolved = await resolveWebsiteBuildInput(
-    supabase,
-    clientId,
-    clientServiceId,
-    overrides
-  );
+    // --- 3. Fire the AI builder via the shared trigger helper ---
+    const creds = await getOrgCredentials(supabase, orgId);
+    const result = await triggerAiWebsiteBuild(
+      supabase,
+      orgId,
+      clientId,
+      clientServiceId,
+      resolved,
+      creds,
+      { source: "manual_start_website_build" }
+    );
 
-  const buildData: WebsiteBuildData = {
-    business_name: resolved.business_name,
-    niche: resolved.niche,
-    tagline: resolved.tagline,
-    primary_color: resolved.primary_color,
-    logo_url: resolved.logo_url,
-    phone: resolved.phone,
-    email: resolved.email,
-    address: resolved.address,
-    services_offered: resolved.services_offered_list,
-    about_text: resolved.about_text,
-  };
-
-  // --- 3. Find a niche template for this industry ---
-  const template = await findNicheTemplate(supabase, orgId, buildData.niche);
-
-  // --- 4. Resolve credentials. Use Vercel env vars if they're already set,
-  // otherwise pull from org-stored creds and populate process.env so the
-  // website-builder internals (which read directly from process.env) pick
-  // them up. This is idempotent across invocations in the same Node process.
-  const creds = await getOrgCredentials(supabase, orgId);
-
-  if (!process.env.VERCEL_TOKEN) {
-    if (!creds.vercel?.token) {
-      throw new Error(
-        "Vercel token is not configured. Add it under Settings → Integrations → Vercel, or set VERCEL_TOKEN as an env var."
-      );
+    revalidatePath(`/clients/${clientId}`);
+    if (!result.ok) {
+      return { ok: false, error: result.error };
     }
-    process.env.VERCEL_TOKEN = creds.vercel.token;
-    if (creds.vercel.teamId && !process.env.VERCEL_TEAM_ID) {
-      process.env.VERCEL_TEAM_ID = creds.vercel.teamId;
+    // The shared trigger helper returns a discriminated union keyed on
+    // `builder` — narrow it here so TS knows we're on the AI branch.
+    if (result.builder !== "ai") {
+      // Shouldn't ever fire, but type-safe fallback just in case.
+      return { ok: false, error: "Unexpected builder result from AI trigger" };
     }
-  }
-
-  if (!process.env.ANTHROPIC_API_KEY) {
-    if (!creds.anthropic?.apiKey) {
-      throw new Error(
-        "Anthropic API key is not configured. Add it under Settings → Integrations → Anthropic, or set ANTHROPIC_API_KEY as an env var."
-      );
-    }
-    process.env.ANTHROPIC_API_KEY = creds.anthropic.apiKey;
-  }
-
-  // --- 5. Kick off the build ---
-  await initiateWebsiteBuild(supabase, clientServiceId, buildData, template);
-
-  // --- 6. Flip the client_service to in_progress. The builder only touches
-  // service_tasks, not client_services, so we have to do this ourselves.
-  await supabase
-    .from("client_services")
-    .update({
-      status: "in_progress",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", clientServiceId);
-
-  // Re-read the task to grab the preview URL the builder wrote into
-  // last_result on success. We return it to the caller so the UI can link
-  // out to the preview.
-  const { data: latestTask } = await supabase
-    .from("service_tasks")
-    .select("last_result")
-    .eq("client_service_id", clientServiceId)
-    .eq("task_type", "website_generation")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .single();
-
-  const lastResult = (latestTask as { last_result: Record<string, unknown> } | null)
-    ?.last_result;
-  const previewUrl = (lastResult?.preview_url as string | undefined) || null;
-  const needsTemplate = lastResult?.step === "needs_template";
-
-  await supabase.from("interaction_log").insert({
-    client_id: clientId,
-    channel: "system",
-    direction: "outbound",
-    content_type: "system_event",
-    content: needsTemplate
-      ? `Website build kicked off — no template for niche "${buildData.niche}", escalation created`
-      : `Website build kicked off for ${buildData.business_name}`,
-    metadata: {
-      client_service_id: clientServiceId,
-      preview_url: previewUrl,
-      needs_template: needsTemplate,
-      source: "manual_start_website_build",
-    },
-  });
-
-  revalidatePath(`/clients/${clientId}`);
-  return { ok: true, previewUrl, needsTemplate };
+    return {
+      ok: true,
+      previewUrl: result.previewUrl,
+      needsTemplate: result.needsTemplate,
+    };
   } catch (err) {
     // Log the real error server-side so it shows up in Vercel logs, and
     // return a structured error so the specific message actually reaches
@@ -526,24 +345,35 @@ export async function startWebsiteBuild(
  * the flow (scope/state check, input resolution, missing-field errors)
  * and only diverges at the point where it calls the builder.
  *
+ * Goose Kit is **asynchronous**: `POST /build` returns a `job_id` in
+ * under a second, and the actual generation + GitHub push + Vercel
+ * deploy happens over the next several minutes. This server action only
+ * kicks the job off and stores the `job_id` on `client_services`. The
+ * browser is then responsible for polling `getGoosekitBuildStatus` on a
+ * ~3s interval until the job reaches a terminal state. The job_id
+ * surviving on the row means polling resumes after a page refresh.
+ *
+ * When the client has an `existing_website`, `initiateGoosekitBuild`
+ * auto-routes to Goose Kit's `/redesign` endpoint instead of `/build` —
+ * `/redesign` scrapes the URL and reuses the client's real brand
+ * (logo, colors, copy) rather than generating everything from scratch.
+ *
  * Greg picks which builder to fire per client from the client detail
  * page; this action is wired to the "Start Goose Kit build" button.
- * See `goosekit-builder.ts` for the adapter and the credential shape.
- *
- * Notes on what's different from the in-repo builder:
- * - No niche template lookup. Goose Kit handles templating internally,
- *   so `needsTemplate` is always `false` in the return value.
- * - No Vercel/Anthropic env-var hoisting. Goose Kit gets its downstream
- *   tokens passed directly in the request body via `GoosekitCredentials`.
- * - No service_tasks row. Goose Kit is synchronous and doesn't plug into
- *   the task processor; we just update client_services.status inline.
+ * See `goosekit-builder.ts` for the full API contract and
+ * `getGoosekitBuildStatus` below for the polling counterpart.
  */
 export async function startGoosekitBuild(
   clientId: string,
   clientServiceId: string,
   overrides?: StartWebsiteBuildOverrides
 ): Promise<
-  | { ok: true; previewUrl: string | null; needsTemplate: boolean }
+  | {
+      ok: true;
+      jobId: string;
+      status: GoosekitJobStatus;
+      statusLabel: string;
+    }
   | { ok: false; error: string }
 > {
   try {
@@ -588,67 +418,32 @@ export async function startGoosekitBuild(
       overrides
     );
 
-    // --- 3. Goose Kit credentials pre-flight ---
+    // --- 3. Fire the Goose Kit builder via the shared trigger helper ---
     const creds = await getOrgCredentials(supabase, orgId);
-    if (!creds.goosekit) {
-      throw new Error(
-        "Goose Kit is not fully configured — save all three tokens (GitHub PAT, Vercel Token, Claude Token) in Settings → Integrations, or set GOOSE_GITHUB_PAT / GOOSE_VERCEL_TOKEN / GOOSE_CLAUDE_TOKEN as env vars."
-      );
-    }
-
-    // --- 4. Call Goose Kit. It's synchronous — returns the preview URL
-    // in the response body. Throws on any non-2xx with details in the
-    // message, which we surface back to the browser via the ok:false path.
-    const buildInput: GoosekitBuildInput = {
-      businessName: resolved.business_name,
-      niche: resolved.niche,
-      servicesOffered: resolved.services_offered,
-      phone: resolved.phone,
-      email: resolved.email,
-      tagline: resolved.tagline,
-      primaryColor: resolved.primary_color,
-      logoUrl: resolved.logo_url,
-      address: resolved.address,
-      aboutText: resolved.about_text,
-      existingWebsite: resolved.existing_website,
-    };
-
-    const buildResult = await initiateGoosekitBuild(buildInput, creds.goosekit);
-
-    // --- 5. Flip the client_service to in_progress so the worklist reflects
-    // the in-flight state. `markClientServiceDelivered` is the manual fallback
-    // to transition this to `delivered` once Greg confirms the preview.
-    await supabase
-      .from("client_services")
-      .update({
-        status: "in_progress",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", clientServiceId);
-
-    // --- 6. Log the build kick-off. Note we log builder:goosekit in the
-    // metadata so the interaction timeline can visually distinguish the
-    // two paths.
-    await supabase.from("interaction_log").insert({
-      client_id: clientId,
-      channel: "system",
-      direction: "outbound",
-      content_type: "system_event",
-      content: `Goose Kit website build kicked off for ${resolved.business_name}`,
-      metadata: {
-        client_service_id: clientServiceId,
-        preview_url: buildResult.previewUrl,
-        build_id: buildResult.buildId,
-        builder: "goosekit",
-        source: "manual_start_goosekit_build",
-      },
-    });
+    const result = await triggerGoosekitWebsiteBuild(
+      supabase,
+      clientId,
+      clientServiceId,
+      resolved,
+      creds,
+      { source: "manual_start_goosekit_build" }
+    );
 
     revalidatePath(`/clients/${clientId}`);
+    if (!result.ok) {
+      return { ok: false, error: result.error };
+    }
+    if (result.builder !== "goosekit") {
+      return {
+        ok: false,
+        error: "Unexpected builder result from Goose Kit trigger",
+      };
+    }
     return {
       ok: true,
-      previewUrl: buildResult.previewUrl,
-      needsTemplate: false,
+      jobId: result.jobId,
+      status: result.status,
+      statusLabel: result.statusLabel,
     };
   } catch (err) {
     console.error("[startGoosekitBuild] failed:", err);
@@ -658,6 +453,376 @@ export async function startGoosekitBuild(
         err instanceof Error
           ? err.message
           : "Unknown error starting Goose Kit website build",
+    };
+  }
+}
+
+/**
+ * Submit an edit instruction for a previously-built Goose Kit website.
+ *
+ * Preconditions:
+ *  - The client_service must be `website-build` and have a live Goose
+ *    Kit build (either `goosekit_repo_name` persisted, or we derive it
+ *    from the business name as a fallback for sites built before the
+ *    repo_name column existed).
+ *  - No in-flight Goose Kit job (we check `goosekit_job_status` and
+ *    bail if one is running — edits would compete with an active build).
+ *  - Goose Kit credentials must be configured.
+ *
+ * Successful edits create a new Goose Kit job in `EDITING_SITE` state
+ * that the existing `getGoosekitBuildStatus` poller picks up — no new
+ * polling path needed, the browser just reuses the same status panel.
+ */
+export async function editClientWebsite(
+  clientId: string,
+  clientServiceId: string,
+  instructions: string
+): Promise<
+  | {
+      ok: true;
+      jobId: string;
+      status: GoosekitJobStatus;
+      statusLabel: string;
+    }
+  | { ok: false; error: string }
+> {
+  try {
+    const { supabase, orgId } = await getAuthedOrg();
+
+    const trimmed = (instructions || "").trim();
+    if (!trimmed) {
+      return { ok: false, error: "Please describe what you want changed." };
+    }
+    if (trimmed.length < 10) {
+      return {
+        ok: false,
+        error:
+          "Edit instructions are too short. Describe the change in a full sentence so Goose Kit can act on it.",
+      };
+    }
+
+    // Scope + preconditions check.
+    const { data: cs } = await supabase
+      .from("client_services")
+      .select(
+        "id, client_id, goosekit_repo_name, goosekit_job_status, goosekit_live_url, client:clients(org_id, business_name, name), service:service_definitions(slug, name)"
+      )
+      .eq("id", clientServiceId)
+      .single();
+
+    if (!cs) throw new Error("Service not found");
+    const csRow = cs as unknown as {
+      id: string;
+      client_id: string;
+      goosekit_repo_name: string | null;
+      goosekit_job_status: GoosekitJobStatus | null;
+      goosekit_live_url: string | null;
+      client: { org_id: string; business_name: string | null; name: string } | null;
+      service: { slug: string; name: string } | null;
+    };
+
+    if (csRow.client?.org_id !== orgId) throw new Error("Insufficient permissions");
+    if (csRow.client_id !== clientId) throw new Error("Client mismatch");
+    if (csRow.service?.slug !== "website-build") {
+      throw new Error(
+        `editClientWebsite called on non-website-build service: ${csRow.service?.slug}`
+      );
+    }
+
+    if (
+      csRow.goosekit_job_status &&
+      !GOOSEKIT_TERMINAL_STATUSES.includes(csRow.goosekit_job_status)
+    ) {
+      throw new Error(
+        `A Goose Kit job is already running on this site (${GOOSEKIT_STATUS_LABELS[csRow.goosekit_job_status]}). Wait for it to finish before submitting an edit.`
+      );
+    }
+
+    if (!csRow.goosekit_live_url && !csRow.goosekit_repo_name) {
+      throw new Error(
+        "This site has not been built with Goose Kit yet. Start a Goose Kit build first before submitting edits."
+      );
+    }
+
+    // Resolve the repo name. Prefer the persisted column; fall back to
+    // re-deriving from the business name for sites built before the
+    // goosekit_repo_name column was added (must match the slug Goose
+    // Kit would have generated on the original build).
+    const repoName =
+      csRow.goosekit_repo_name ||
+      deriveRepoName(
+        csRow.client?.business_name?.trim() || csRow.client?.name || "business"
+      );
+
+    const creds = await getOrgCredentials(supabase, orgId);
+    if (!creds.goosekit) {
+      throw new Error(
+        "Goose Kit is not fully configured — save all three tokens (GitHub PAT, Vercel Token, Claude Token) in Settings → Integrations, or set GOOSE_GITHUB_PAT / GOOSE_VERCEL_TOKEN / GOOSE_CLAUDE_TOKEN as env vars."
+      );
+    }
+
+    const created = await editGoosekitSite(repoName, trimmed, creds.goosekit);
+
+    // Persist the new job on the row so the existing status panel picks
+    // it up. Back-fill goosekit_repo_name if it was missing (legacy row).
+    await supabase
+      .from("client_services")
+      .update({
+        goosekit_job_id: created.jobId,
+        goosekit_job_status: created.status,
+        goosekit_repo_name: repoName,
+        goosekit_error: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", clientServiceId);
+
+    await supabase.from("interaction_log").insert({
+      client_id: clientId,
+      channel: "system",
+      direction: "outbound",
+      content_type: "system_event",
+      content: `Goose Kit edit submitted: ${trimmed.slice(0, 140)}${trimmed.length > 140 ? "…" : ""}`,
+      metadata: {
+        client_service_id: clientServiceId,
+        goosekit_job_id: created.jobId,
+        goosekit_repo_name: repoName,
+        goosekit_initial_status: created.status,
+        goosekit_queue_position: created.queuePosition ?? null,
+        edit_instructions: trimmed,
+        builder: "goosekit",
+        source: "manual_edit_goosekit_site",
+      },
+    });
+
+    revalidatePath(`/clients/${clientId}`);
+    return {
+      ok: true,
+      jobId: created.jobId,
+      status: created.status,
+      statusLabel: GOOSEKIT_STATUS_LABELS[created.status],
+    };
+  } catch (err) {
+    console.error("[editClientWebsite] failed:", err);
+    return {
+      ok: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Unknown error submitting Goose Kit edit",
+    };
+  }
+}
+
+/**
+ * Poll the status of a Goose Kit job previously started via
+ * `startGoosekitBuild`. The browser calls this every 3 seconds (matching
+ * the reference frontend's cadence) until the job reaches a terminal
+ * state (READY or FAILED). Each call:
+ *
+ *   1. Loads `goosekit_job_id` from the `client_services` row.
+ *   2. Calls Goose Kit's GET /status/:id with that job_id.
+ *   3. Writes the updated status/live_url/error back to the row so the
+ *      next page load picks up where we left off.
+ *   4. On terminal states:
+ *      - READY  → flip `client_services.status = "ready_to_deliver"` and
+ *                 log the live URL to `interaction_log`.
+ *      - FAILED → keep `in_progress`, open an escalation so Greg can
+ *                 investigate, and store the error on the row.
+ *
+ * Returns a small payload the browser uses to update the UI without
+ * having to re-fetch the whole client detail page.
+ */
+export async function getGoosekitBuildStatus(
+  clientId: string,
+  clientServiceId: string
+): Promise<
+  | {
+      ok: true;
+      jobId: string | null;
+      status: GoosekitJobStatus | null;
+      statusLabel: string | null;
+      liveUrl: string | null;
+      error: string | null;
+      isTerminal: boolean;
+    }
+  | { ok: false; error: string }
+> {
+  try {
+    const { supabase, orgId } = await getAuthedOrg();
+
+    // Load the current row. Everything we need is already stored locally
+    // except the live status from Goose Kit itself.
+    const { data: cs } = await supabase
+      .from("client_services")
+      .select(
+        "id, client_id, status, goosekit_job_id, goosekit_job_status, goosekit_live_url, goosekit_error, client:clients(org_id, name), service:service_definitions(name)"
+      )
+      .eq("id", clientServiceId)
+      .single();
+
+    if (!cs) throw new Error("Service not found");
+    const csRow = cs as unknown as {
+      id: string;
+      client_id: string;
+      status: string;
+      goosekit_job_id: string | null;
+      goosekit_job_status: GoosekitJobStatus | null;
+      goosekit_live_url: string | null;
+      goosekit_error: string | null;
+      client: { org_id: string; name: string } | null;
+      service: { name: string } | null;
+    };
+
+    if (csRow.client?.org_id !== orgId) throw new Error("Insufficient permissions");
+    if (csRow.client_id !== clientId) throw new Error("Client mismatch");
+
+    // No job running — return whatever's on the row so the UI can render
+    // its current state without loop-polling a null.
+    if (!csRow.goosekit_job_id) {
+      return {
+        ok: true,
+        jobId: null,
+        status: null,
+        statusLabel: null,
+        liveUrl: csRow.goosekit_live_url,
+        error: csRow.goosekit_error,
+        isTerminal: true,
+      };
+    }
+
+    // Already terminal — don't hit Goose Kit again. Idempotent refresh.
+    if (
+      csRow.goosekit_job_status &&
+      GOOSEKIT_TERMINAL_STATUSES.includes(csRow.goosekit_job_status)
+    ) {
+      return {
+        ok: true,
+        jobId: csRow.goosekit_job_id,
+        status: csRow.goosekit_job_status,
+        statusLabel: GOOSEKIT_STATUS_LABELS[csRow.goosekit_job_status],
+        liveUrl: csRow.goosekit_live_url,
+        error: csRow.goosekit_error,
+        isTerminal: true,
+      };
+    }
+
+    const creds = await getOrgCredentials(supabase, orgId);
+    if (!creds.goosekit) {
+      throw new Error(
+        "Goose Kit credentials missing — cannot check job status. Restore the tokens in Settings → Integrations."
+      );
+    }
+
+    const status = await getGoosekitJobStatus(
+      csRow.goosekit_job_id,
+      creds.goosekit
+    );
+
+    const isTerminal = GOOSEKIT_TERMINAL_STATUSES.includes(status.status);
+
+    // Persist the polled state back to the row regardless of terminal.
+    // On non-terminal states this just updates the status column; on
+    // terminal states we also flip `client_services.status` and write
+    // the final live_url or error.
+    if (isTerminal && status.status === "READY") {
+      const liveUrl = status.liveUrl ?? null;
+      await supabase
+        .from("client_services")
+        .update({
+          status: "ready_to_deliver",
+          goosekit_job_status: status.status,
+          goosekit_live_url: liveUrl,
+          goosekit_error: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", clientServiceId);
+
+      await supabase.from("interaction_log").insert({
+        client_id: clientId,
+        channel: "system",
+        direction: "inbound",
+        content_type: "system_event",
+        content: `Goose Kit build READY — live URL: ${liveUrl ?? "(no URL in response)"}`,
+        metadata: {
+          client_service_id: clientServiceId,
+          goosekit_job_id: csRow.goosekit_job_id,
+          goosekit_live_url: liveUrl,
+          builder: "goosekit",
+          source: "goosekit_status_poll",
+        },
+      });
+
+      revalidatePath(`/clients/${clientId}`);
+    } else if (isTerminal && status.status === "FAILED") {
+      const errorMsg = status.error || "Goose Kit reported the job failed";
+      await supabase
+        .from("client_services")
+        .update({
+          goosekit_job_status: status.status,
+          goosekit_error: errorMsg,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", clientServiceId);
+
+      // Open an escalation so Greg has a worklist item to follow up on.
+      // This is the async equivalent of the "no template found" path in
+      // the in-repo AI builder — something external failed and we need
+      // a human to decide what happens next.
+      await supabase.from("escalations").insert({
+        client_id: clientId,
+        reason: `Goose Kit build failed: ${errorMsg.slice(0, 200)}`,
+        status: "open",
+        metadata: {
+          client_service_id: clientServiceId,
+          goosekit_job_id: csRow.goosekit_job_id,
+          goosekit_error: errorMsg,
+          builder: "goosekit",
+        },
+      });
+
+      await supabase.from("interaction_log").insert({
+        client_id: clientId,
+        channel: "system",
+        direction: "inbound",
+        content_type: "system_event",
+        content: `Goose Kit build FAILED: ${errorMsg.slice(0, 200)}`,
+        metadata: {
+          client_service_id: clientServiceId,
+          goosekit_job_id: csRow.goosekit_job_id,
+          builder: "goosekit",
+          source: "goosekit_status_poll",
+        },
+      });
+
+      revalidatePath(`/clients/${clientId}`);
+    } else {
+      // Non-terminal: just update the status column.
+      await supabase
+        .from("client_services")
+        .update({
+          goosekit_job_status: status.status,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", clientServiceId);
+    }
+
+    return {
+      ok: true,
+      jobId: csRow.goosekit_job_id,
+      status: status.status,
+      statusLabel: GOOSEKIT_STATUS_LABELS[status.status],
+      liveUrl: status.liveUrl ?? csRow.goosekit_live_url,
+      error: status.error ?? null,
+      isTerminal,
+    };
+  } catch (err) {
+    console.error("[getGoosekitBuildStatus] failed:", err);
+    return {
+      ok: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Unknown error checking Goose Kit job status",
     };
   }
 }
