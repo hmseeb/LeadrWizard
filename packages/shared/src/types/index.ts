@@ -379,7 +379,10 @@ export interface OrgCredentials {
   goosekit?: {
     githubPat: string;
     vercelToken: string;
-    claudeToken: string;
+    // Goose Kit's API body calls this `claude_setup_token`. The DB column
+    // is still named `goosekit_claude_token_encrypted` for backwards
+    // compatibility with credentials already saved by the agency.
+    claudeSetupToken: string;
     baseUrl?: string;
   };
   linked2checkout?: {

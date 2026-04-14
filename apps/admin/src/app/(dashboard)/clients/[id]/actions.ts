@@ -6,10 +6,14 @@ import {
   initiateWebsiteBuild,
   findNicheTemplate,
   initiateGoosekitBuild,
+  getGoosekitJobStatus,
+  GOOSEKIT_TERMINAL_STATUSES,
+  GOOSEKIT_STATUS_LABELS,
 } from "@leadrwizard/shared/automations";
 import type {
   WebsiteBuildData,
   GoosekitBuildInput,
+  GoosekitJobStatus,
 } from "@leadrwizard/shared/automations";
 import { revalidatePath } from "next/cache";
 
@@ -526,24 +530,35 @@ export async function startWebsiteBuild(
  * the flow (scope/state check, input resolution, missing-field errors)
  * and only diverges at the point where it calls the builder.
  *
+ * Goose Kit is **asynchronous**: `POST /build` returns a `job_id` in
+ * under a second, and the actual generation + GitHub push + Vercel
+ * deploy happens over the next several minutes. This server action only
+ * kicks the job off and stores the `job_id` on `client_services`. The
+ * browser is then responsible for polling `getGoosekitBuildStatus` on a
+ * ~3s interval until the job reaches a terminal state. The job_id
+ * surviving on the row means polling resumes after a page refresh.
+ *
+ * When the client has an `existing_website`, `initiateGoosekitBuild`
+ * auto-routes to Goose Kit's `/redesign` endpoint instead of `/build` —
+ * `/redesign` scrapes the URL and reuses the client's real brand
+ * (logo, colors, copy) rather than generating everything from scratch.
+ *
  * Greg picks which builder to fire per client from the client detail
  * page; this action is wired to the "Start Goose Kit build" button.
- * See `goosekit-builder.ts` for the adapter and the credential shape.
- *
- * Notes on what's different from the in-repo builder:
- * - No niche template lookup. Goose Kit handles templating internally,
- *   so `needsTemplate` is always `false` in the return value.
- * - No Vercel/Anthropic env-var hoisting. Goose Kit gets its downstream
- *   tokens passed directly in the request body via `GoosekitCredentials`.
- * - No service_tasks row. Goose Kit is synchronous and doesn't plug into
- *   the task processor; we just update client_services.status inline.
+ * See `goosekit-builder.ts` for the full API contract and
+ * `getGoosekitBuildStatus` below for the polling counterpart.
  */
 export async function startGoosekitBuild(
   clientId: string,
   clientServiceId: string,
   overrides?: StartWebsiteBuildOverrides
 ): Promise<
-  | { ok: true; previewUrl: string | null; needsTemplate: boolean }
+  | {
+      ok: true;
+      jobId: string;
+      status: GoosekitJobStatus;
+      statusLabel: string;
+    }
   | { ok: false; error: string }
 > {
   try {
@@ -596,9 +611,10 @@ export async function startGoosekitBuild(
       );
     }
 
-    // --- 4. Call Goose Kit. It's synchronous — returns the preview URL
-    // in the response body. Throws on any non-2xx with details in the
-    // message, which we surface back to the browser via the ok:false path.
+    // --- 4. Kick off the job. Fast: returns job_id + initial status
+    // (usually VALIDATING) in well under a second. The actual build
+    // happens asynchronously and we poll for it via the separate
+    // getGoosekitBuildStatus action.
     const buildInput: GoosekitBuildInput = {
       businessName: resolved.business_name,
       niche: resolved.niche,
@@ -613,15 +629,22 @@ export async function startGoosekitBuild(
       existingWebsite: resolved.existing_website,
     };
 
-    const buildResult = await initiateGoosekitBuild(buildInput, creds.goosekit);
+    const created = await initiateGoosekitBuild(buildInput, creds.goosekit);
 
-    // --- 5. Flip the client_service to in_progress so the worklist reflects
-    // the in-flight state. `markClientServiceDelivered` is the manual fallback
-    // to transition this to `delivered` once Greg confirms the preview.
+    // --- 5. Persist the job state on the client_service row so:
+    //   - The UI can poll without re-calling Goose Kit from nav.
+    //   - Refreshing the page resumes polling (via GoosekitBuildStatusPanel).
+    //   - We have an audit trail of which job belongs to which service.
+    // Also flip status → in_progress so the worklist reflects the
+    // in-flight build.
     await supabase
       .from("client_services")
       .update({
         status: "in_progress",
+        goosekit_job_id: created.jobId,
+        goosekit_job_status: created.status,
+        goosekit_live_url: null,
+        goosekit_error: null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", clientServiceId);
@@ -634,11 +657,13 @@ export async function startGoosekitBuild(
       channel: "system",
       direction: "outbound",
       content_type: "system_event",
-      content: `Goose Kit website build kicked off for ${resolved.business_name}`,
+      content: `Goose Kit website build queued for ${resolved.business_name} (${created.status})`,
       metadata: {
         client_service_id: clientServiceId,
-        preview_url: buildResult.previewUrl,
-        build_id: buildResult.buildId,
+        goosekit_job_id: created.jobId,
+        goosekit_initial_status: created.status,
+        goosekit_queue_position: created.queuePosition ?? null,
+        has_existing_website: !!resolved.existing_website,
         builder: "goosekit",
         source: "manual_start_goosekit_build",
       },
@@ -647,8 +672,9 @@ export async function startGoosekitBuild(
     revalidatePath(`/clients/${clientId}`);
     return {
       ok: true,
-      previewUrl: buildResult.previewUrl,
-      needsTemplate: false,
+      jobId: created.jobId,
+      status: created.status,
+      statusLabel: GOOSEKIT_STATUS_LABELS[created.status],
     };
   } catch (err) {
     console.error("[startGoosekitBuild] failed:", err);
@@ -658,6 +684,220 @@ export async function startGoosekitBuild(
         err instanceof Error
           ? err.message
           : "Unknown error starting Goose Kit website build",
+    };
+  }
+}
+
+/**
+ * Poll the status of a Goose Kit job previously started via
+ * `startGoosekitBuild`. The browser calls this every 3 seconds (matching
+ * the reference frontend's cadence) until the job reaches a terminal
+ * state (READY or FAILED). Each call:
+ *
+ *   1. Loads `goosekit_job_id` from the `client_services` row.
+ *   2. Calls Goose Kit's GET /status/:id with that job_id.
+ *   3. Writes the updated status/live_url/error back to the row so the
+ *      next page load picks up where we left off.
+ *   4. On terminal states:
+ *      - READY  → flip `client_services.status = "ready_to_deliver"` and
+ *                 log the live URL to `interaction_log`.
+ *      - FAILED → keep `in_progress`, open an escalation so Greg can
+ *                 investigate, and store the error on the row.
+ *
+ * Returns a small payload the browser uses to update the UI without
+ * having to re-fetch the whole client detail page.
+ */
+export async function getGoosekitBuildStatus(
+  clientId: string,
+  clientServiceId: string
+): Promise<
+  | {
+      ok: true;
+      jobId: string | null;
+      status: GoosekitJobStatus | null;
+      statusLabel: string | null;
+      liveUrl: string | null;
+      error: string | null;
+      isTerminal: boolean;
+    }
+  | { ok: false; error: string }
+> {
+  try {
+    const { supabase, orgId } = await getAuthedOrg();
+
+    // Load the current row. Everything we need is already stored locally
+    // except the live status from Goose Kit itself.
+    const { data: cs } = await supabase
+      .from("client_services")
+      .select(
+        "id, client_id, status, goosekit_job_id, goosekit_job_status, goosekit_live_url, goosekit_error, client:clients(org_id, name), service:service_definitions(name)"
+      )
+      .eq("id", clientServiceId)
+      .single();
+
+    if (!cs) throw new Error("Service not found");
+    const csRow = cs as unknown as {
+      id: string;
+      client_id: string;
+      status: string;
+      goosekit_job_id: string | null;
+      goosekit_job_status: GoosekitJobStatus | null;
+      goosekit_live_url: string | null;
+      goosekit_error: string | null;
+      client: { org_id: string; name: string } | null;
+      service: { name: string } | null;
+    };
+
+    if (csRow.client?.org_id !== orgId) throw new Error("Insufficient permissions");
+    if (csRow.client_id !== clientId) throw new Error("Client mismatch");
+
+    // No job running — return whatever's on the row so the UI can render
+    // its current state without loop-polling a null.
+    if (!csRow.goosekit_job_id) {
+      return {
+        ok: true,
+        jobId: null,
+        status: null,
+        statusLabel: null,
+        liveUrl: csRow.goosekit_live_url,
+        error: csRow.goosekit_error,
+        isTerminal: true,
+      };
+    }
+
+    // Already terminal — don't hit Goose Kit again. Idempotent refresh.
+    if (
+      csRow.goosekit_job_status &&
+      GOOSEKIT_TERMINAL_STATUSES.includes(csRow.goosekit_job_status)
+    ) {
+      return {
+        ok: true,
+        jobId: csRow.goosekit_job_id,
+        status: csRow.goosekit_job_status,
+        statusLabel: GOOSEKIT_STATUS_LABELS[csRow.goosekit_job_status],
+        liveUrl: csRow.goosekit_live_url,
+        error: csRow.goosekit_error,
+        isTerminal: true,
+      };
+    }
+
+    const creds = await getOrgCredentials(supabase, orgId);
+    if (!creds.goosekit) {
+      throw new Error(
+        "Goose Kit credentials missing — cannot check job status. Restore the tokens in Settings → Integrations."
+      );
+    }
+
+    const status = await getGoosekitJobStatus(
+      csRow.goosekit_job_id,
+      creds.goosekit
+    );
+
+    const isTerminal = GOOSEKIT_TERMINAL_STATUSES.includes(status.status);
+
+    // Persist the polled state back to the row regardless of terminal.
+    // On non-terminal states this just updates the status column; on
+    // terminal states we also flip `client_services.status` and write
+    // the final live_url or error.
+    if (isTerminal && status.status === "READY") {
+      const liveUrl = status.liveUrl ?? null;
+      await supabase
+        .from("client_services")
+        .update({
+          status: "ready_to_deliver",
+          goosekit_job_status: status.status,
+          goosekit_live_url: liveUrl,
+          goosekit_error: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", clientServiceId);
+
+      await supabase.from("interaction_log").insert({
+        client_id: clientId,
+        channel: "system",
+        direction: "inbound",
+        content_type: "system_event",
+        content: `Goose Kit build READY — live URL: ${liveUrl ?? "(no URL in response)"}`,
+        metadata: {
+          client_service_id: clientServiceId,
+          goosekit_job_id: csRow.goosekit_job_id,
+          goosekit_live_url: liveUrl,
+          builder: "goosekit",
+          source: "goosekit_status_poll",
+        },
+      });
+
+      revalidatePath(`/clients/${clientId}`);
+    } else if (isTerminal && status.status === "FAILED") {
+      const errorMsg = status.error || "Goose Kit reported the job failed";
+      await supabase
+        .from("client_services")
+        .update({
+          goosekit_job_status: status.status,
+          goosekit_error: errorMsg,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", clientServiceId);
+
+      // Open an escalation so Greg has a worklist item to follow up on.
+      // This is the async equivalent of the "no template found" path in
+      // the in-repo AI builder — something external failed and we need
+      // a human to decide what happens next.
+      await supabase.from("escalations").insert({
+        client_id: clientId,
+        reason: `Goose Kit build failed: ${errorMsg.slice(0, 200)}`,
+        status: "open",
+        metadata: {
+          client_service_id: clientServiceId,
+          goosekit_job_id: csRow.goosekit_job_id,
+          goosekit_error: errorMsg,
+          builder: "goosekit",
+        },
+      });
+
+      await supabase.from("interaction_log").insert({
+        client_id: clientId,
+        channel: "system",
+        direction: "inbound",
+        content_type: "system_event",
+        content: `Goose Kit build FAILED: ${errorMsg.slice(0, 200)}`,
+        metadata: {
+          client_service_id: clientServiceId,
+          goosekit_job_id: csRow.goosekit_job_id,
+          builder: "goosekit",
+          source: "goosekit_status_poll",
+        },
+      });
+
+      revalidatePath(`/clients/${clientId}`);
+    } else {
+      // Non-terminal: just update the status column.
+      await supabase
+        .from("client_services")
+        .update({
+          goosekit_job_status: status.status,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", clientServiceId);
+    }
+
+    return {
+      ok: true,
+      jobId: csRow.goosekit_job_id,
+      status: status.status,
+      statusLabel: GOOSEKIT_STATUS_LABELS[status.status],
+      liveUrl: status.liveUrl ?? csRow.goosekit_live_url,
+      error: status.error ?? null,
+      isTerminal,
+    };
+  } catch (err) {
+    console.error("[getGoosekitBuildStatus] failed:", err);
+    return {
+      ok: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Unknown error checking Goose Kit job status",
     };
   }
 }

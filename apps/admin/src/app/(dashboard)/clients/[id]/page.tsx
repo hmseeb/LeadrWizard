@@ -168,6 +168,10 @@ export default async function ClientDetailPage({
                       <StartWebsiteBuildButton
                         clientId={id}
                         clientServiceId={cs.id}
+                        initialGoosekitJobId={cs.goosekit_job_id ?? null}
+                        initialGoosekitStatus={cs.goosekit_job_status ?? null}
+                        initialGoosekitLiveUrl={cs.goosekit_live_url ?? null}
+                        initialGoosekitError={cs.goosekit_error ?? null}
                       />
                     )}
                     {canMarkDelivered && (

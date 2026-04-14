@@ -397,15 +397,19 @@ export async function getOrgCredentials(
       "goosekit.vercelToken",
       row.goosekit_vercel_token_encrypted
     );
-    const claudeToken = tryDecrypt(
-      "goosekit.claudeToken",
+    // The DB column is still `goosekit_claude_token_encrypted` (see
+    // 00012), but we surface it as `claudeSetupToken` because that's
+    // what Goose Kit's API body field is actually called — see
+    // `packages/shared/src/automations/goosekit-builder.ts`.
+    const claudeSetupToken = tryDecrypt(
+      "goosekit.claudeSetupToken",
       row.goosekit_claude_token_encrypted
     );
-    if (githubPat && vercelToken && claudeToken) {
+    if (githubPat && vercelToken && claudeSetupToken) {
       creds.goosekit = {
         githubPat,
         vercelToken,
-        claudeToken,
+        claudeSetupToken,
         baseUrl: row.goosekit_base_url || undefined,
       };
     }
@@ -426,7 +430,7 @@ export async function getOrgCredentials(
     creds.goosekit = {
       githubPat: process.env.GOOSE_GITHUB_PAT,
       vercelToken: process.env.GOOSE_VERCEL_TOKEN,
-      claudeToken: process.env.GOOSE_CLAUDE_TOKEN,
+      claudeSetupToken: process.env.GOOSE_CLAUDE_TOKEN,
       baseUrl: process.env.GOOSE_BASE_URL || undefined,
     };
   }

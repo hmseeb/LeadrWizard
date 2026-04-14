@@ -33,9 +33,18 @@ export {
 
 export {
   initiateGoosekitBuild,
+  getGoosekitJobStatus,
+  goosekitHealthCheck,
+  buildPromptFromInput,
+  deriveRepoName,
+  GOOSEKIT_POLL_INTERVAL_MS,
+  GOOSEKIT_TERMINAL_STATUSES,
+  GOOSEKIT_STATUS_LABELS,
   type GoosekitBuildInput,
   type GoosekitCredentials,
-  type GoosekitBuildResult,
+  type GoosekitJobCreateResult,
+  type GoosekitJobStatusResult,
+  type GoosekitJobStatus,
 } from "./goosekit-builder";
 
 export {
