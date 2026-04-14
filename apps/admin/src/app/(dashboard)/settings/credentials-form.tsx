@@ -37,6 +37,7 @@ interface IntegrationConfig {
   has_linked2checkout_creds: boolean;
   linked2checkout_merchant_id: string | null;
   linked2checkout_product_id_ignite: string | null;
+  default_website_builder: "ai" | "goosekit";
 }
 
 const initialState: ActionResult = { success: false };
@@ -171,6 +172,10 @@ export function CredentialsForm({ config }: { config: IntegrationConfig }) {
     initialState
   );
   const [l2cState, l2cAction, l2cPending] = useActionState(
+    saveIntegrationCredentials,
+    initialState
+  );
+  const [builderPrefState, builderPrefAction, builderPrefPending] = useActionState(
     saveIntegrationCredentials,
     initialState
   );
@@ -433,6 +438,74 @@ export function CredentialsForm({ config }: { config: IntegrationConfig }) {
             defaultValue={config.vercel_team_id || ""}
           />
           <SaveButton state={vercelState} pending={vercelPending} />
+        </form>
+      </IntegrationCard>
+
+      {/* Default Website Builder — Option B: per-org preference read by
+          the widget auto-trigger when a client finishes onboarding for a
+          website-build service. Does NOT gate the per-client manual
+          buttons — Greg can still pick either builder on the client
+          detail page regardless of this setting. */}
+      <IntegrationCard
+        name="Default Website Builder"
+        description="Which builder fires automatically when a client completes onboarding. Manual builder buttons on the client page still work regardless."
+        icon={Globe}
+        isConfigured={true}
+      >
+        <form action={builderPrefAction} className="space-y-3">
+          <input type="hidden" name="integration" value="website_builder_preference" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label
+              className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3.5 py-3 transition-colors ${
+                config.default_website_builder === "ai"
+                  ? "border-indigo-500/50 bg-indigo-900/20"
+                  : "border-zinc-700 bg-zinc-800/40 hover:border-zinc-600"
+              }`}
+            >
+              <input
+                type="radio"
+                name="default_website_builder"
+                value="ai"
+                defaultChecked={config.default_website_builder === "ai"}
+                className="mt-0.5 h-4 w-4 cursor-pointer accent-indigo-500"
+              />
+              <div>
+                <div className="text-sm font-medium text-zinc-100">
+                  AI Builder (in-repo)
+                </div>
+                <p className="mt-0.5 text-xs text-zinc-400">
+                  Claude + Vercel templates. Synchronous, returns a preview
+                  URL immediately. Needs Anthropic + Vercel credentials.
+                </p>
+              </div>
+            </label>
+            <label
+              className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3.5 py-3 transition-colors ${
+                config.default_website_builder === "goosekit"
+                  ? "border-purple-500/50 bg-purple-900/20"
+                  : "border-zinc-700 bg-zinc-800/40 hover:border-zinc-600"
+              }`}
+            >
+              <input
+                type="radio"
+                name="default_website_builder"
+                value="goosekit"
+                defaultChecked={config.default_website_builder === "goosekit"}
+                className="mt-0.5 h-4 w-4 cursor-pointer accent-purple-500"
+              />
+              <div>
+                <div className="text-sm font-medium text-zinc-100">
+                  Goose Kit (external)
+                </div>
+                <p className="mt-0.5 text-xs text-zinc-400">
+                  Railway-hosted orchestrator. Async job pipeline (3–10
+                  minutes). Supports `/redesign` when client has an
+                  existing site. Needs all three Goose Kit tokens below.
+                </p>
+              </div>
+            </label>
+          </div>
+          <SaveButton state={builderPrefState} pending={builderPrefPending} />
         </form>
       </IntegrationCard>
 

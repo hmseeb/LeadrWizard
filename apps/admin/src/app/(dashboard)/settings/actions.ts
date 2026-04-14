@@ -131,6 +131,23 @@ export async function saveIntegrationCredentials(
         break;
       }
 
+      case "website_builder_preference": {
+        // Per-org default website builder (Option B from the design
+        // review). Read on onboarding auto-trigger to decide whether the
+        // in-repo AI pipeline or Goose Kit fires. Validated against the
+        // CHECK constraint in migration 00014 — anything other than the
+        // two known values gets rejected.
+        const choice = (formData.get("default_website_builder") as string)?.trim();
+        if (choice !== "ai" && choice !== "goosekit") {
+          return {
+            success: false,
+            error: "Invalid default website builder — pick AI or Goose Kit.",
+          };
+        }
+        updates.default_website_builder = choice;
+        break;
+      }
+
       case "vercel": {
         const token = (formData.get("vercel_token") as string)?.trim();
         const teamId = (formData.get("vercel_team_id") as string)?.trim();

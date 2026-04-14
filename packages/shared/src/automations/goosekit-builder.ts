@@ -375,6 +375,86 @@ export async function initiateGoosekitBuild(
 }
 
 /**
+ * Ask Goose Kit to edit an already-built site. Matches the reference
+ * frontend's `editSite()` in `src/lib/api.ts` — POST /edit with the
+ * three tokens, the existing `repo_name`, a free-text `prompt` describing
+ * the desired change, and an optional `images` array for reference
+ * material.
+ *
+ * Like `/build` and `/redesign`, this is an **async** endpoint: it
+ * returns a `job_id` in <1s and the actual Claude edit + git push +
+ * Vercel redeploy happens over the next several minutes. The caller
+ * polls `getGoosekitJobStatus` the same way until terminal — the job
+ * walks the same state machine (VALIDATING → EDITING_SITE → PUSHING_CODE
+ * → DEPLOYING → VERIFYING → READY | FAILED) and returns the same live
+ * URL when done.
+ *
+ * The `instructions` parameter is the only required payload beyond
+ * tokens + repo_name. It's a natural-language description of what Greg
+ * wants changed — e.g. "Make the hero headline more urgent and change
+ * the primary color to emerald green" — and gets handed verbatim to
+ * Claude, so it's fine (and encouraged) to be specific and
+ * prescriptive.
+ *
+ * NOTE: `repo_name` must match whatever was persisted on the original
+ * build's `client_services.goosekit_repo_name`. If you re-derive from
+ * the business name and the business has been renamed since the build,
+ * the slug drifts and the /edit call lands on a nonexistent repo.
+ */
+export async function editGoosekitSite(
+  repoName: string,
+  instructions: string,
+  creds: GoosekitCredentials,
+  images?: string[]
+): Promise<GoosekitJobCreateResult> {
+  const baseUrl = normalizeBaseUrl(creds);
+
+  const body: Record<string, unknown> = {
+    github_pat: creds.githubPat,
+    vercel_token: creds.vercelToken,
+    claude_setup_token: creds.claudeSetupToken,
+    repo_name: repoName,
+    prompt: instructions,
+  };
+  if (images && images.length > 0) {
+    body.images = images;
+  }
+
+  const { ok, status, rawText, parsed } = await goosekitFetch(
+    `${baseUrl}/edit`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify(body),
+    }
+  );
+
+  if (!ok) {
+    const detail = rawText.slice(0, 500) || `HTTP ${status}`;
+    throw new Error(`Goose Kit edit request failed (HTTP ${status}): ${detail}`);
+  }
+
+  const r = (parsed ?? {}) as Record<string, unknown>;
+  const jobId = typeof r.id === "string" ? r.id : null;
+  if (!jobId) {
+    throw new Error(
+      `Goose Kit did not return a job id for /edit. Response: ${rawText.slice(0, 500)}`
+    );
+  }
+
+  return {
+    jobId,
+    status: assertJobStatus(r.status),
+    queuePosition:
+      typeof r.queue_position === "number" ? r.queue_position : undefined,
+    raw: parsed,
+  };
+}
+
+/**
  * Poll the current status of a running job. Call this on a ~3s interval
  * from the caller until `GOOSEKIT_TERMINAL_STATUSES.includes(status)`.
  *

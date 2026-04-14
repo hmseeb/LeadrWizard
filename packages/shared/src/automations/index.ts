@@ -33,6 +33,7 @@ export {
 
 export {
   initiateGoosekitBuild,
+  editGoosekitSite,
   getGoosekitJobStatus,
   goosekitHealthCheck,
   buildPromptFromInput,

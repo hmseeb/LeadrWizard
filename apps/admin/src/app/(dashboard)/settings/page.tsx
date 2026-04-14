@@ -21,7 +21,7 @@ export default async function SettingsPage() {
   const { data: org } = await serviceClient
     .from("organizations")
     .select(
-      "twilio_phone_number, twilio_account_sid_encrypted, ghl_api_key_encrypted, ghl_location_id, ghl_company_id, ghl_snapshot_id, vapi_api_key_encrypted, vapi_assistant_id, elevenlabs_agent_id, google_client_id_encrypted, anthropic_api_key_encrypted, vercel_token_encrypted, vercel_team_id, goosekit_github_pat_encrypted, goosekit_vercel_token_encrypted, goosekit_claude_token_encrypted, goosekit_base_url, linked2checkout_api_key_encrypted, linked2checkout_webhook_secret_encrypted, linked2checkout_merchant_id, linked2checkout_product_id_ignite, settings"
+      "twilio_phone_number, twilio_account_sid_encrypted, ghl_api_key_encrypted, ghl_location_id, ghl_company_id, ghl_snapshot_id, vapi_api_key_encrypted, vapi_assistant_id, elevenlabs_agent_id, google_client_id_encrypted, anthropic_api_key_encrypted, vercel_token_encrypted, vercel_team_id, goosekit_github_pat_encrypted, goosekit_vercel_token_encrypted, goosekit_claude_token_encrypted, goosekit_base_url, linked2checkout_api_key_encrypted, linked2checkout_webhook_secret_encrypted, linked2checkout_merchant_id, linked2checkout_product_id_ignite, default_website_builder, settings"
     )
     .eq("id", orgData.org.id)
     .single();
@@ -60,6 +60,11 @@ export default async function SettingsPage() {
       (row.linked2checkout_merchant_id as string) || null,
     linked2checkout_product_id_ignite:
       (row.linked2checkout_product_id_ignite as string) || null,
+    // Per-org default website builder. 'ai' is the server-side default
+    // from migration 00014 so a missing column here means the migration
+    // hasn't run yet — fall back safely.
+    default_website_builder:
+      (row.default_website_builder as "ai" | "goosekit") || "ai",
   };
 
   return (

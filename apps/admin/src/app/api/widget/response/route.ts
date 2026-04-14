@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { createServerClient } from "@leadrwizard/shared/supabase";
 import type {
@@ -7,6 +7,7 @@ import type {
   DataFieldDefinition,
 } from "@leadrwizard/shared/types";
 import { createRouteLogger } from "@leadrwizard/shared/utils";
+import { triggerDefaultWebsiteBuild } from "@/lib/website-build-trigger";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -100,7 +101,9 @@ export async function POST(request: Request) {
     // reflects "data collected, ready for delivery/automation".
     const { data: clientServices } = await supabase
       .from("client_services")
-      .select("id, service_id, status, service:service_definitions(required_data_fields)")
+      .select(
+        "id, service_id, status, service:service_definitions(slug, required_data_fields)"
+      )
       .eq("client_id", session.client_id)
       .eq("opted_out", false);
 
@@ -113,10 +116,15 @@ export async function POST(request: Request) {
     let totalRequired = 0;
     let totalAnswered = 0;
     const readyServiceIds: string[] = [];
+    // Services that just transitioned AND are the website-build service —
+    // these are the ones we fire the auto-trigger on.
+    const websiteBuildServiceIds: string[] = [];
 
     for (const cs of clientServices || []) {
       const row = cs as Record<string, unknown>;
-      const definition = row.service as ServiceDefinition | null;
+      const definition = row.service as
+        | (ServiceDefinition & { slug?: string })
+        | null;
       const requiredFields = (definition?.required_data_fields || []).filter(
         (f: DataFieldDefinition) => f.required
       );
@@ -144,6 +152,9 @@ export async function POST(request: Request) {
         currentStatus === "pending_onboarding"
       ) {
         readyServiceIds.push(cs.id as string);
+        if (definition?.slug === "website-build") {
+          websiteBuildServiceIds.push(cs.id as string);
+        }
       }
     }
 
@@ -155,6 +166,68 @@ export async function POST(request: Request) {
           updated_at: new Date().toISOString(),
         })
         .in("id", readyServiceIds);
+    }
+
+    // --- Auto-trigger website build(s) ---
+    // For any website-build service that just crossed into ready_to_deliver,
+    // fire the org's default builder (AI or Goose Kit). We use Next.js 15's
+    // `after()` so this runs after the HTTP response is sent — the AI builder
+    // is slow (Claude + Vercel deploy) and we don't want the widget to sit
+    // waiting on it. Failures are logged but intentionally don't block the
+    // response; the service is already at ready_to_deliver, so Greg can
+    // retry manually from the client detail page if the auto-trigger fails.
+    if (
+      websiteBuildServiceIds.length > 0 &&
+      session.client_id &&
+      orgId
+    ) {
+      const capturedClientId = session.client_id as string;
+      const capturedOrgId = orgId;
+      const serviceIdsToFire = [...websiteBuildServiceIds];
+      after(async () => {
+        for (const serviceId of serviceIdsToFire) {
+          try {
+            const result = await triggerDefaultWebsiteBuild(
+              supabase,
+              capturedOrgId,
+              capturedClientId,
+              serviceId,
+              { source: "auto_trigger_on_onboarding_submit" }
+            );
+            if (!result.ok) {
+              log.warn(
+                {
+                  client_service_id: serviceId,
+                  builder: result.builder,
+                  error: result.error,
+                },
+                "Auto-trigger website build failed — service left at ready_to_deliver for manual retry"
+              );
+            } else {
+              log.info(
+                {
+                  client_service_id: serviceId,
+                  builder: result.builder,
+                },
+                "Auto-trigger website build kicked off"
+              );
+            }
+          } catch (err) {
+            log.error(
+              { err, client_service_id: serviceId },
+              "Auto-trigger website build threw"
+            );
+            Sentry.captureException(err, {
+              tags: {
+                correlation_id: correlationId,
+                org_id: capturedOrgId,
+                auto_trigger: "website_build",
+              },
+              extra: { client_service_id: serviceId },
+            });
+          }
+        }
+      });
     }
 
     const completionPct =

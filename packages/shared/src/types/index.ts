@@ -6,6 +6,18 @@
 
 export type OrgMemberRole = "owner" | "admin" | "member";
 
+/**
+ * Which website builder fires when a client completes onboarding for a
+ * `website-build` service. Chosen per-org in Settings → Integrations and
+ * read by the widget response handler to auto-trigger the build.
+ *
+ * - `"ai"`       — in-repo Claude + Vercel template pipeline
+ *                  (`initiateWebsiteBuild` in `automations/website-builder`)
+ * - `"goosekit"` — external Goose Kit orchestrator
+ *                  (`initiateGoosekitBuild` in `automations/goosekit-builder`)
+ */
+export type WebsiteBuilderChoice = "ai" | "goosekit";
+
 export type ServiceStatus =
   | "pending_onboarding"
   | "onboarding"
@@ -71,6 +83,8 @@ export interface Organization {
   linked2checkout_webhook_secret_encrypted: string | null;
   linked2checkout_merchant_id: string | null;
   linked2checkout_product_id_ignite: string | null;
+  /** Per-org default website builder — read on onboarding auto-trigger. */
+  default_website_builder: WebsiteBuilderChoice;
 }
 
 export interface OrgSettings {
@@ -391,6 +405,13 @@ export interface OrgCredentials {
     merchantId?: string;
     productIdIgnite?: string;
   };
+  /**
+   * Per-org preference for which website builder fires when a client
+   * completes onboarding. Always populated — defaults to `"ai"` if the
+   * row somehow lacks the column (e.g. pre-migration) so the auto-trigger
+   * helper never has to branch on undefined.
+   */
+  defaultWebsiteBuilder: WebsiteBuilderChoice;
 }
 
 // --- Agent Types ---

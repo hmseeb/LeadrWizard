@@ -281,17 +281,27 @@ export async function getOrgCredentials(
   const { data: org, error } = await supabase
     .from("organizations")
     .select(
-      "twilio_account_sid_encrypted, twilio_auth_token_encrypted, twilio_phone_number, ghl_api_key_encrypted, ghl_location_id, ghl_company_id, ghl_snapshot_id, vapi_api_key_encrypted, vapi_assistant_id, elevenlabs_agent_id, vercel_token_encrypted, vercel_team_id, anthropic_api_key_encrypted, goosekit_github_pat_encrypted, goosekit_vercel_token_encrypted, goosekit_claude_token_encrypted, goosekit_base_url, linked2checkout_api_key_encrypted, linked2checkout_webhook_secret_encrypted, linked2checkout_merchant_id, linked2checkout_product_id_ignite"
+      "twilio_account_sid_encrypted, twilio_auth_token_encrypted, twilio_phone_number, ghl_api_key_encrypted, ghl_location_id, ghl_company_id, ghl_snapshot_id, vapi_api_key_encrypted, vapi_assistant_id, elevenlabs_agent_id, vercel_token_encrypted, vercel_team_id, anthropic_api_key_encrypted, goosekit_github_pat_encrypted, goosekit_vercel_token_encrypted, goosekit_claude_token_encrypted, goosekit_base_url, linked2checkout_api_key_encrypted, linked2checkout_webhook_secret_encrypted, linked2checkout_merchant_id, linked2checkout_product_id_ignite, default_website_builder"
     )
     .eq("id", orgId)
     .single();
 
   if (error || !org) {
-    return {};
+    // Empty creds still needs `defaultWebsiteBuilder` populated —
+    // downstream code treats it as non-nullable so it can skip a branch
+    // on every read. `"ai"` is the safer default for orgs that haven't
+    // opted into Goose Kit yet.
+    return { defaultWebsiteBuilder: "ai" };
   }
 
   const row = org as Record<string, string | null>;
-  const creds: OrgCredentials = {};
+  const creds: OrgCredentials = {
+    // Default to 'ai' if the column somehow isn't set (e.g. pre-migration
+    // row that's been re-saved before the schema reload hit). Validated
+    // against the enum; anything else falls back to 'ai'.
+    defaultWebsiteBuilder:
+      row.default_website_builder === "goosekit" ? "goosekit" : "ai",
+  };
 
   // Helper: wrap a decrypt call so a single stale/unreadable blob doesn't
   // kill the entire function. The most common cause of failure here is an
