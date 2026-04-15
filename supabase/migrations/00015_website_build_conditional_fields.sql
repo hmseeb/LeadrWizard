@@ -17,6 +17,13 @@
 -- they can't drift.
 --
 -- Idempotent: safe to run on databases that already have the new shape.
+--
+-- IMPORTANT: This UPDATE matches by `slug = 'website-build'`, NOT by the
+-- demo seed UUID. Real production orgs have their own
+-- `service_definitions` rows with their own UUIDs; matching by slug
+-- ensures every org's website-build service gets the new shape. An
+-- earlier revision of this migration matched by the seed UUID and
+-- silently no-op'd in production — don't reintroduce that.
 
 update public.service_definitions
 set
@@ -34,4 +41,4 @@ set
     {"key": "logo_url", "label": "Logo (upload or URL)", "type": "file", "required": false}
   ]'::jsonb,
   updated_at = now()
-where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+where slug = 'website-build';
