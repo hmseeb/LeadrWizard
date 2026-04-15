@@ -41,6 +41,8 @@ insert into public.service_definitions (id, org_id, name, slug, description, req
    '[
      {"key": "google_email", "label": "Google Account Email", "type": "email", "required": true, "help_text": "The Google account that owns or manages your GMB listing"},
      {"key": "business_name", "label": "Business Name (as on Google)", "type": "text", "required": true},
+     {"key": "website_url", "label": "Business Website URL", "type": "url", "required": false, "placeholder": "https://yourbusiness.com", "help_text": "Your business website — we will link it to your GMB profile"},
+     {"key": "business_information", "label": "Business Information", "type": "textarea", "required": true, "placeholder": "Tell us about your business, what you do, and who you serve", "help_text": "A short overview we will use to enrich your GMB profile and description"},
      {"key": "business_address", "label": "Business Address", "type": "text", "required": true},
      {"key": "business_phone", "label": "Business Phone", "type": "phone", "required": true},
      {"key": "business_category", "label": "Primary Business Category", "type": "text", "required": true, "placeholder": "e.g., Plumber, Dentist, Restaurant"},
@@ -66,6 +68,8 @@ insert into public.service_definitions (id, org_id, name, slug, description, req
    '[
      {"key": "legal_business_name", "label": "Legal Business Name", "type": "text", "required": true, "help_text": "Must match IRS records exactly"},
      {"key": "ein", "label": "EIN (Tax ID)", "type": "text", "required": true, "placeholder": "XX-XXXXXXX", "help_text": "Your federal Employer Identification Number"},
+     {"key": "website_url", "label": "Business Website URL", "type": "url", "required": true, "placeholder": "https://yourbusiness.com", "help_text": "Required by Twilio/TCR to verify your business during A2P 10DLC registration"},
+     {"key": "business_information", "label": "Business Information", "type": "textarea", "required": true, "placeholder": "Describe your business, what products/services you sell, and how customers opt in to SMS", "help_text": "Used in the A2P brand and campaign submission — be specific about messaging use case"},
      {"key": "business_address", "label": "Business Address", "type": "text", "required": true},
      {"key": "business_city", "label": "City", "type": "text", "required": true},
      {"key": "business_state", "label": "State", "type": "text", "required": true},
@@ -87,6 +91,8 @@ insert into public.service_definitions (id, org_id, name, slug, description, req
    'Chatbot, missed call text back, text follow up, Google review management — deployed from GHL snapshot',
    '[
      {"key": "business_name", "label": "Business Name", "type": "text", "required": true},
+     {"key": "website_url", "label": "Business Website URL", "type": "url", "required": false, "placeholder": "https://yourbusiness.com", "help_text": "We will link it in automated SMS/email replies and your chatbot"},
+     {"key": "business_information", "label": "Business Information", "type": "textarea", "required": true, "placeholder": "Tell us about your business, what you do, and who you serve", "help_text": "Used to personalize chatbot replies, SMS follow-ups, and review requests"},
      {"key": "business_phone", "label": "Business Phone", "type": "phone", "required": true},
      {"key": "business_email", "label": "Business Email", "type": "email", "required": true},
      {"key": "business_hours", "label": "Business Hours Summary", "type": "text", "required": false, "placeholder": "e.g., Mon-Fri 9-5, Sat 10-2"},
