@@ -13,9 +13,13 @@ export {
 export {
   submitA2PRegistration,
   checkA2PStatus,
-  maybeTriggerA2POnCompletion,
   type A2PRegistrationData,
 } from "./a2p-manager";
+
+export {
+  maybeTriggerA2POnCompletion,
+  type MaybeTriggerA2PResult,
+} from "./a2p-trigger";
 
 export {
   requestGMBAccess,
