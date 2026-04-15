@@ -17,6 +17,10 @@ import {
   triggerGoosekitWebsiteBuild,
   type StartWebsiteBuildOverrides as SharedStartWebsiteBuildOverrides,
 } from "@/lib/website-build-trigger";
+import {
+  triggerA2PSubmission,
+  type StartA2PSubmissionOverrides as SharedStartA2PSubmissionOverrides,
+} from "@/lib/a2p-submit-trigger";
 import { deriveRepoName } from "@leadrwizard/shared/automations";
 import { revalidatePath } from "next/cache";
 
@@ -211,6 +215,114 @@ export async function markClientServiceDelivered(
   });
 
   revalidatePath(`/clients/${clientId}`);
+}
+
+/**
+ * Manual overrides Greg can pass when submitting A2P from the client
+ * detail button. Mirrors `StartWebsiteBuildOverrides`: only used when
+ * the onboarding widget didn't capture a particular A2P field, so the
+ * inline form can fill in the gaps without forcing Greg back through
+ * the manual `/clients/new` A2P intake form.
+ */
+export type StartA2PSubmissionOverrides = SharedStartA2PSubmissionOverrides;
+
+/**
+ * Submit a client's A2P 10DLC registration to Twilio using the data
+ * collected during onboarding (plus any manual overrides Greg supplies
+ * via the inline form on the client detail page).
+ *
+ * Flow:
+ *  1. Scope-check the client_service against the acting org and verify
+ *     it is actually the `a2p-registration` service.
+ *  2. Refuse if the service is already `delivered` (Twilio campaign was
+ *     verified previously) or if a non-terminal `service_tasks` row
+ *     already exists (the carrier still owns the previous submission).
+ *  3. Resolve A2P inputs from session_responses + clients row + overrides
+ *     via the shared `triggerA2PSubmission` helper. The same helper is
+ *     used by the auto-trigger path in the widget response route, so
+ *     manual and automatic submissions can't drift on the missing-field
+ *     check.
+ *  4. The trigger calls `submitA2PRegistration` which creates the
+ *     `service_tasks` row, hits Twilio Trust Hub + Brand APIs, and
+ *     returns once the brand has been registered (the carrier review
+ *     happens asynchronously and gets polled by `task-processor.ts`).
+ *  5. Bubble back the structured result so the button UI can surface
+ *     the error (and expand its inline form for missing fields) without
+ *     Next.js scrubbing the message in production.
+ */
+export async function submitA2PFromOnboarding(
+  clientId: string,
+  clientServiceId: string,
+  overrides?: StartA2PSubmissionOverrides
+): Promise<
+  | { ok: true; taskId: string; brandSid: string | null }
+  | { ok: false; error: string }
+> {
+  try {
+    const { supabase, orgId } = await getAuthedOrg();
+
+    // --- 1. Scope + state check on the client_service row ---
+    const { data: cs } = await supabase
+      .from("client_services")
+      .select(
+        "id, client_id, status, opted_out, client:clients(org_id), service:service_definitions(slug, name)"
+      )
+      .eq("id", clientServiceId)
+      .single();
+
+    if (!cs) throw new Error("Service not found");
+    const csRow = cs as unknown as {
+      id: string;
+      client_id: string;
+      status: string;
+      opted_out: boolean;
+      client: { org_id: string } | null;
+      service: { slug: string; name: string } | null;
+    };
+
+    if (csRow.client?.org_id !== orgId) throw new Error("Insufficient permissions");
+    if (csRow.client_id !== clientId) throw new Error("Client mismatch");
+    if (csRow.opted_out) throw new Error("Client has opted out of this service");
+    if (csRow.service?.slug !== "a2p-registration") {
+      throw new Error(
+        `submitA2PFromOnboarding called on non-A2P service: ${csRow.service?.slug}`
+      );
+    }
+    if (csRow.status === "delivered") {
+      throw new Error("A2P registration is already marked delivered");
+    }
+
+    // --- 2. Fire the shared trigger ---
+    const result = await triggerA2PSubmission(
+      supabase,
+      clientId,
+      clientServiceId,
+      "manual_start_a2p_submission",
+      overrides
+    );
+
+    revalidatePath(`/clients/${clientId}`);
+    if (!result.ok) {
+      return { ok: false, error: result.error };
+    }
+    return {
+      ok: true,
+      taskId: result.taskId,
+      brandSid: result.brandSid,
+    };
+  } catch (err) {
+    // Mirrors the website-build pattern: log server-side, return the
+    // real error message as data so the browser sees it through Next.js'
+    // production error scrubbing.
+    console.error("[submitA2PFromOnboarding] failed:", err);
+    return {
+      ok: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Unknown error submitting A2P registration",
+    };
+  }
 }
 
 /**

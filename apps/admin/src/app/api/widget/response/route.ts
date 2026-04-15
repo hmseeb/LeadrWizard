@@ -6,8 +6,12 @@ import type {
   SessionResponse,
   DataFieldDefinition,
 } from "@leadrwizard/shared/types";
-import { createRouteLogger } from "@leadrwizard/shared/utils";
+import {
+  createRouteLogger,
+  filterCurrentlyRequiredFields,
+} from "@leadrwizard/shared/utils";
 import { triggerDefaultWebsiteBuild } from "@/lib/website-build-trigger";
+import { triggerA2PSubmission } from "@/lib/a2p-submit-trigger";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -117,24 +121,39 @@ export async function POST(request: Request) {
     let totalAnswered = 0;
     const readyServiceIds: string[] = [];
     // Services that just transitioned AND are the website-build service —
-    // these are the ones we fire the auto-trigger on.
+    // these are the ones we fire the website-build auto-trigger on.
     const websiteBuildServiceIds: string[] = [];
+    // Same idea for a2p-registration: the carrier flow is slow (1-7 days
+    // for brand approval), so we want to kick it off the instant the
+    // client finishes onboarding rather than waiting for Greg to notice
+    // and click the manual submit button.
+    const a2pServiceIds: string[] = [];
 
     for (const cs of clientServices || []) {
       const row = cs as Record<string, unknown>;
       const definition = row.service as
         | (ServiceDefinition & { slug?: string })
         | null;
-      const requiredFields = (definition?.required_data_fields || []).filter(
-        (f: DataFieldDefinition) => f.required
+
+      // Build the per-service answer map BEFORE deciding what's required,
+      // so `required_if` clauses (e.g. "tagline is required only when
+      // existing_website is empty") evaluate against fresh sibling
+      // answers from this same service.
+      const serviceResponses = (allResponses || []).filter(
+        (r: { field_key: string; client_service_id: string | null }) =>
+          r.client_service_id === cs.id
+      ) as Array<{ field_key: string; field_value: string; client_service_id: string | null }>;
+      const answersByKey: Record<string, string> = {};
+      for (const r of serviceResponses) {
+        answersByKey[r.field_key] = r.field_value;
+      }
+      const requiredFields = filterCurrentlyRequiredFields(
+        definition?.required_data_fields || [],
+        answersByKey
       );
       totalRequired += requiredFields.length;
 
-      const answeredKeys = new Set(
-        (allResponses || [])
-          .filter((r: { field_key: string; client_service_id: string | null }) => r.client_service_id === cs.id)
-          .map((r: { field_key: string; client_service_id: string | null }) => r.field_key)
-      );
+      const answeredKeys = new Set(serviceResponses.map((r) => r.field_key));
 
       const answeredCount = requiredFields.filter((f: DataFieldDefinition) =>
         answeredKeys.has(f.key)
@@ -154,6 +173,9 @@ export async function POST(request: Request) {
         readyServiceIds.push(cs.id as string);
         if (definition?.slug === "website-build") {
           websiteBuildServiceIds.push(cs.id as string);
+        }
+        if (definition?.slug === "a2p-registration") {
+          a2pServiceIds.push(cs.id as string);
         }
       }
     }
@@ -222,6 +244,71 @@ export async function POST(request: Request) {
                 correlation_id: correlationId,
                 org_id: capturedOrgId,
                 auto_trigger: "website_build",
+              },
+              extra: { client_service_id: serviceId },
+            });
+          }
+        }
+      });
+    }
+
+    // --- Auto-trigger A2P submission(s) ---
+    // Same idea as the website-build auto-trigger above: the moment the
+    // client finishes the A2P onboarding questions, push the registration
+    // to Twilio Trust Hub so the 1-7 day carrier review starts running in
+    // the background. Failures are logged but do not block the response —
+    // the service is left at ready_to_deliver so Greg can retry from the
+    // client detail page's "Submit A2P to Twilio" button.
+    //
+    // Wrapped in `after()` because Trust Hub is slow (multiple sequential
+    // POSTs to create the customer profile, end users, brand, etc.) and
+    // the widget should not sit waiting on it before showing the next
+    // question or the completion screen.
+    if (
+      a2pServiceIds.length > 0 &&
+      session.client_id &&
+      orgId
+    ) {
+      const capturedClientId = session.client_id as string;
+      const capturedOrgId = orgId;
+      const a2pIdsToFire = [...a2pServiceIds];
+      after(async () => {
+        for (const serviceId of a2pIdsToFire) {
+          try {
+            const result = await triggerA2PSubmission(
+              supabase,
+              capturedClientId,
+              serviceId,
+              "auto_trigger_on_onboarding_submit"
+            );
+            if (!result.ok) {
+              log.warn(
+                {
+                  client_service_id: serviceId,
+                  error: result.error,
+                },
+                "Auto-trigger A2P submission failed — service left at ready_to_deliver for manual retry"
+              );
+            } else {
+              log.info(
+                {
+                  client_service_id: serviceId,
+                  task_id: result.taskId,
+                  brand_sid: result.brandSid,
+                },
+                "Auto-trigger A2P submission kicked off"
+              );
+            }
+          } catch (err) {
+            log.error(
+              { err, client_service_id: serviceId },
+              "Auto-trigger A2P submission threw"
+            );
+            Sentry.captureException(err, {
+              tags: {
+                correlation_id: correlationId,
+                org_id: capturedOrgId,
+                auto_trigger: "a2p_registration",
               },
               extra: { client_service_id: serviceId },
             });

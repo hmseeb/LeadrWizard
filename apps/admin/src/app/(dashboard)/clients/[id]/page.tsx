@@ -4,6 +4,7 @@ import { CopyOnboardingLink } from "./copy-onboarding-link";
 import { GhlSubaccountPanel } from "./ghl-subaccount-panel";
 import { MarkDeliveredButton } from "./mark-delivered-button";
 import { StartWebsiteBuildButton } from "./start-website-build-button";
+import { StartA2PSubmissionButton } from "./start-a2p-submission-button";
 import { EditWebsitePanel } from "./edit-website-panel";
 import { DeleteClientPanel } from "./delete-client-panel";
 
@@ -83,6 +84,57 @@ export default async function ClientDetailPage({
       .order("created_at", { ascending: false }),
   ]);
 
+  // Load the latest A2P `service_tasks` row per A2P client_service so the
+  // submit-button can render the current Twilio submission state on first
+  // paint without a client-side round trip. A client typically has at
+  // most one A2P service, so this is a single-row lookup in practice;
+  // we still key the result by client_service_id to support edge cases.
+  const a2pServiceIds = (services || [])
+    .filter(
+      (cs) =>
+        (cs.service as { slug?: string } | null)?.slug === "a2p-registration"
+    )
+    .map((cs) => cs.id as string);
+  const a2pTaskByServiceId = new Map<
+    string,
+    {
+      id: string;
+      status: string;
+      external_ref: string | null;
+      last_result: Record<string, unknown> | null;
+      updated_at: string;
+    }
+  >();
+  if (a2pServiceIds.length > 0) {
+    const { data: a2pTasks } = await supabase
+      .from("service_tasks")
+      .select("id, client_service_id, status, external_ref, last_result, updated_at, created_at")
+      .in("client_service_id", a2pServiceIds)
+      .eq("task_type", "a2p_registration")
+      .order("created_at", { ascending: false });
+    for (const t of a2pTasks || []) {
+      const row = t as {
+        id: string;
+        client_service_id: string;
+        status: string;
+        external_ref: string | null;
+        last_result: Record<string, unknown> | null;
+        updated_at: string;
+      };
+      // Only keep the most recent task per client_service (the query is
+      // ordered DESC, so the first hit wins).
+      if (!a2pTaskByServiceId.has(row.client_service_id)) {
+        a2pTaskByServiceId.set(row.client_service_id, {
+          id: row.id,
+          status: row.status,
+          external_ref: row.external_ref,
+          last_result: row.last_result,
+          updated_at: row.updated_at,
+        });
+      }
+    }
+  }
+
   return (
     <div>
       <div className="flex items-start justify-between gap-4">
@@ -148,6 +200,17 @@ export default async function ClientDetailPage({
               !cs.opted_out &&
               service?.slug === "website-build" &&
               cs.status !== "delivered";
+            // Submit A2P is shown for the a2p-registration service in
+            // any pre-delivered state. The button itself disables when
+            // a Twilio submission is already in flight, so it's safe to
+            // surface as soon as the row exists.
+            const canSubmitA2P =
+              !cs.opted_out &&
+              service?.slug === "a2p-registration" &&
+              cs.status !== "delivered";
+            const a2pTask = canSubmitA2P
+              ? a2pTaskByServiceId.get(cs.id) || null
+              : null;
             return (
               <div
                 key={cs.id}
@@ -163,7 +226,7 @@ export default async function ClientDetailPage({
                     {serviceStatusLabel(cs.status, cs.opted_out)}
                   </span>
                 </div>
-                {(canStartWebsiteBuild || canMarkDelivered) && (
+                {(canStartWebsiteBuild || canSubmitA2P || canMarkDelivered) && (
                   <div className="mt-3 space-y-2">
                     {canStartWebsiteBuild && (
                       <StartWebsiteBuildButton
@@ -173,6 +236,13 @@ export default async function ClientDetailPage({
                         initialGoosekitStatus={cs.goosekit_job_status ?? null}
                         initialGoosekitLiveUrl={cs.goosekit_live_url ?? null}
                         initialGoosekitError={cs.goosekit_error ?? null}
+                      />
+                    )}
+                    {canSubmitA2P && (
+                      <StartA2PSubmissionButton
+                        clientId={id}
+                        clientServiceId={cs.id}
+                        existingTask={a2pTask}
                       />
                     )}
                     {canMarkDelivered && (

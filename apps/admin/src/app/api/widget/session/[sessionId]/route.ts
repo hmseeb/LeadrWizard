@@ -8,7 +8,10 @@ import type {
   DataFieldDefinition,
   AgentDecision,
 } from "@leadrwizard/shared/types";
-import { createRouteLogger } from "@leadrwizard/shared/utils";
+import {
+  createRouteLogger,
+  filterCurrentlyRequiredFields,
+} from "@leadrwizard/shared/utils";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -108,7 +111,11 @@ export async function GET(
       .select("*")
       .eq("session_id", sessionId);
 
-    // Calculate progress per service (same logic as the existing widget hook)
+    // Calculate progress per service (same logic as the existing widget hook).
+    // The `required_if` clause means a field's required-ness depends on
+    // sibling answers — e.g. `tagline` is only required when
+    // `existing_website` is empty/N/A. We evaluate that per-service so
+    // services don't bleed answers into each other.
     const services: ServiceWithProgress[] = (clientServices || []).map(
       (cs: Record<string, unknown>) => {
         const definition = cs.service as unknown as ServiceDefinition;
@@ -118,8 +125,13 @@ export async function GET(
         const answeredKeys = new Set(
           serviceResponses.map((r: SessionResponse) => r.field_key)
         );
-        const requiredFields = (definition?.required_data_fields || []).filter(
-          (f: DataFieldDefinition) => f.required
+        const answersByKey: Record<string, string> = {};
+        for (const r of serviceResponses) {
+          answersByKey[r.field_key] = r.field_value;
+        }
+        const requiredFields = filterCurrentlyRequiredFields(
+          definition?.required_data_fields || [],
+          answersByKey
         );
         const missingFields = requiredFields.filter(
           (f: DataFieldDefinition) => !answeredKeys.has(f.key)
@@ -160,22 +172,23 @@ export async function GET(
           message: "All set! Your onboarding is complete.",
         };
 
-    // Calculate overall completion percentage
-    const totalFields = services.reduce(
-      (sum, s) =>
-        sum +
-        (s.definition?.required_data_fields || []).filter(
-          (f: DataFieldDefinition) => f.required
-        ).length,
-      0
-    );
+    // Calculate overall completion percentage. We re-derive the
+    // per-service required-field count from `filterCurrentlyRequiredFields`
+    // (which honors `required_if`) instead of just counting `required: true`
+    // fields, so the progress bar matches the question flow exactly.
+    const perServiceRequiredCount = services.map((s) => {
+      const answers: Record<string, string> = {};
+      for (const r of s.responses) {
+        answers[r.field_key] = r.field_value;
+      }
+      return filterCurrentlyRequiredFields(
+        s.definition?.required_data_fields || [],
+        answers
+      ).length;
+    });
+    const totalFields = perServiceRequiredCount.reduce((a, b) => a + b, 0);
     const completedFields = services.reduce(
-      (sum, s) =>
-        sum +
-        (s.definition?.required_data_fields || []).filter(
-          (f: DataFieldDefinition) => f.required
-        ).length -
-        s.missingFields.length,
+      (sum, s, idx) => sum + perServiceRequiredCount[idx] - s.missingFields.length,
       0
     );
     const completionPct =
@@ -196,19 +209,14 @@ export async function GET(
           name: client.name,
           business_name: client.business_name,
         },
-        services: services.map((s) => ({
+        services: services.map((s, idx) => ({
           clientServiceId: s.clientService.id,
           serviceId: s.definition.id,
           serviceName: s.definition.name,
           missingFields: s.missingFields,
           pct: s.pct,
-          totalRequired: (s.definition?.required_data_fields || []).filter(
-            (f: DataFieldDefinition) => f.required
-          ).length,
-          completedCount:
-            (s.definition?.required_data_fields || []).filter(
-              (f: DataFieldDefinition) => f.required
-            ).length - s.missingFields.length,
+          totalRequired: perServiceRequiredCount[idx],
+          completedCount: perServiceRequiredCount[idx] - s.missingFields.length,
         })),
         currentQuestion,
         completionPct,

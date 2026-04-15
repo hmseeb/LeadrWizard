@@ -142,6 +142,12 @@ export async function resolveWebsiteBuildInput(
     overrides?.servicesOffered?.trim() ||
     answers.services_offered?.trim() ||
     "";
+  const tagline =
+    overrides?.tagline?.trim() || answers.tagline?.trim() || "";
+  const primary_color =
+    overrides?.primaryColor?.trim() || answers.primary_color?.trim() || "";
+  const about_text =
+    overrides?.aboutText?.trim() || answers.about_text?.trim() || "";
 
   const missing: string[] = [];
   if (!business_name) missing.push("business_name");
@@ -156,6 +162,73 @@ export async function resolveWebsiteBuildInput(
     );
   }
 
+  // 4. Persist any newly-supplied override values back to session_responses
+  // so the next build/edit attempt finds them in the normal place. Without
+  // this, Greg has to re-type niche/services_offered every time he re-fires
+  // the builder — and the Goose Kit READY handler that resets the service
+  // to ready_to_deliver after a successful run guarantees he'll be back on
+  // the same screen the moment he wants to retry. Persisting overrides
+  // makes the manual form a one-time correction, not a recurring tax.
+  //
+  // We need a session_id to insert into session_responses; pick the most
+  // recent session for this client. If none exists (e.g. provisioned via
+  // a path that skipped the widget), we silently skip persistence — the
+  // build still succeeds with the in-memory overrides, and the next click
+  // will re-prompt. That's strictly better than failing the build.
+  const overrideEntries: Array<{ field_key: string; field_value: string }> = [];
+  const writeIfOverridden = (
+    fieldKey: string,
+    overrideValue: string | undefined
+  ) => {
+    const trimmed = overrideValue?.trim();
+    if (!trimmed) return;
+    if (answers[fieldKey]?.trim() === trimmed) return; // already on file
+    overrideEntries.push({ field_key: fieldKey, field_value: trimmed });
+  };
+  writeIfOverridden("niche", overrides?.niche);
+  writeIfOverridden("services_offered", overrides?.servicesOffered);
+  writeIfOverridden("tagline", overrides?.tagline);
+  writeIfOverridden("primary_color", overrides?.primaryColor);
+  writeIfOverridden("about_text", overrides?.aboutText);
+
+  if (overrideEntries.length > 0) {
+    const { data: latestSession } = await supabase
+      .from("onboarding_sessions")
+      .select("id")
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const sessionId = (latestSession as { id: string } | null)?.id;
+    if (sessionId) {
+      // Best-effort upsert. If a row with the same (session_id,
+      // client_service_id, field_key) somehow exists with a different
+      // value, we delete-then-insert so the override wins. session_responses
+      // does not have a unique constraint on that triple, so we delete by
+      // those columns to avoid stacking duplicate rows on every retry.
+      await supabase
+        .from("session_responses")
+        .delete()
+        .eq("session_id", sessionId)
+        .eq("client_service_id", clientServiceId)
+        .in(
+          "field_key",
+          overrideEntries.map((e) => e.field_key)
+        );
+
+      await supabase.from("session_responses").insert(
+        overrideEntries.map((e) => ({
+          session_id: sessionId,
+          client_service_id: clientServiceId,
+          field_key: e.field_key,
+          field_value: e.field_value,
+          answered_via: "click" as const,
+        }))
+      );
+    }
+  }
+
   const services_offered_list = services_offered
     .split(/[\n,;]+/)
     .map((s) => s.trim())
@@ -168,13 +241,11 @@ export async function resolveWebsiteBuildInput(
     email,
     services_offered,
     services_offered_list,
-    tagline: overrides?.tagline?.trim() || answers.tagline || undefined,
-    primary_color:
-      overrides?.primaryColor?.trim() || answers.primary_color || undefined,
+    tagline: tagline || undefined,
+    primary_color: primary_color || undefined,
     logo_url: answers.logo_url || undefined,
     address: answers.address || undefined,
-    about_text:
-      overrides?.aboutText?.trim() || answers.about_text || undefined,
+    about_text: about_text || undefined,
     existing_website: answers.existing_website || undefined,
   };
 }
