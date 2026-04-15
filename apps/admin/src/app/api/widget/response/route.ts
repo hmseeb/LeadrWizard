@@ -7,6 +7,7 @@ import type {
   DataFieldDefinition,
 } from "@leadrwizard/shared/types";
 import { createRouteLogger } from "@leadrwizard/shared/utils";
+import { maybeTriggerA2POnCompletion } from "@leadrwizard/shared/automations";
 import { triggerDefaultWebsiteBuild } from "@/lib/website-build-trigger";
 
 const corsHeaders = {
@@ -235,24 +236,69 @@ export async function POST(request: Request) {
         ? Math.round((totalAnswered / totalRequired) * 100)
         : 100;
 
-    // Update session completion_pct on every submission
-    const updateData: Record<string, unknown> = {
-      completion_pct: completionPct,
-      last_interaction_at: new Date().toISOString(),
-    };
-
-    // Auto-complete when all required fields are collected
-    if (totalRequired > 0 && totalAnswered >= totalRequired) {
-      updateData.status = "completed";
-    }
-
+    // Update session completion_pct on every submission. We intentionally do
+    // NOT flip onboarding_sessions.status to 'completed' here — that used to
+    // happen when totalAnswered >= totalRequired, which was too early for
+    // packages containing A2P (Twilio brand + campaign approval takes 1-7
+    // days). The task-processor cron (checkForCompletedSessions) is the only
+    // place that closes sessions, and it does so when every non-opted-out
+    // client_service reaches `delivered`.
     await supabase
       .from("onboarding_sessions")
-      .update(updateData)
+      .update({
+        completion_pct: completionPct,
+        last_interaction_at: new Date().toISOString(),
+      })
       .eq("id", sessionId);
 
+    // --- A2P trigger on onboarding completion ---
+    // If the client has now answered every required field for every service,
+    // fire the A2P registration to Twilio. The helper is idempotent (gates on
+    // `client_services.status === 'pending_onboarding'`) so repeat calls from
+    // rapid submissions are safe. A2P Twilio failures are logged via Sentry
+    // but must not fail the widget response — the client has already seen
+    // their "all done" screen and there's nothing they can do about it.
+    const onboardingComplete = totalRequired > 0 && totalAnswered >= totalRequired;
+    if (onboardingComplete) {
+      try {
+        const triggerResult = await maybeTriggerA2POnCompletion(
+          supabase,
+          sessionId
+        );
+        if (triggerResult.triggered) {
+          log.info(
+            { task_id: triggerResult.taskId },
+            "A2P registration submitted after onboarding completion"
+          );
+        } else if (
+          triggerResult.reason !== "no_a2p" &&
+          triggerResult.reason !== "already_triggered"
+        ) {
+          // "no_a2p" and "already_triggered" are expected steady-state
+          // outcomes. Anything else is worth logging.
+          log.warn(
+            { reason: triggerResult.reason },
+            "A2P trigger did not fire after onboarding completion"
+          );
+        }
+      } catch (err) {
+        log.error(
+          { err: err instanceof Error ? err : new Error(String(err)) },
+          "Failed to fire A2P registration after onboarding completion"
+        );
+        Sentry.captureException(err, {
+          tags: {
+            correlation_id: correlationId,
+            org_id: orgId,
+            auto_trigger: "a2p_registration",
+          },
+          extra: { session_id: sessionId },
+        });
+      }
+    }
+
     return NextResponse.json(
-      { ok: true, completionPct, completed: updateData.status === "completed" },
+      { ok: true, completionPct, completed: false },
       { headers: corsHeaders }
     );
   } catch (error) {

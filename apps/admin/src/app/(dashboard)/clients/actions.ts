@@ -2,7 +2,7 @@
 
 import { createSupabaseServerClient, createSupabaseServiceClient } from "@/lib/supabase-server";
 import { getUserOrg } from "@leadrwizard/shared/tenant";
-import { submitA2PRegistration } from "@leadrwizard/shared/automations";
+import { maybeTriggerA2POnCompletion } from "@leadrwizard/shared/automations";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -60,7 +60,9 @@ export async function startManualOnboarding(formData: FormData) {
   if (!businessPhone) throw new Error("Business phone is required");
   if (messageTypes.length === 0) throw new Error("Select at least one message type");
 
-  // Build use case description from selected message types
+  // Human-readable labels for logging the agency's selected message types.
+  // The use-case description itself is built inside maybeTriggerA2POnCompletion
+  // so the widget path and manual path produce identical Twilio payloads.
   const messageTypeLabels: Record<string, string> = {
     appointment_reminders: "appointment reminders",
     missed_call_textback: "missed call follow-ups",
@@ -72,7 +74,6 @@ export async function startManualOnboarding(formData: FormData) {
     follow_up: "post-service follow-ups",
   };
   const selectedLabels = messageTypes.map((t) => messageTypeLabels[t] || t);
-  const useCase = `${legalBusinessName} sends ${selectedLabels.join(", ")} to customers who have opted in to receive text messages. Customers can opt out at any time by replying STOP. Reply HELP for support. Msg & data rates may apply.`;
 
   // 1. Provision client (creates client, session, client_services)
   const paymentRef = `manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -157,32 +158,12 @@ export async function startManualOnboarding(formData: FormData) {
     );
   }
 
-  // 4. Submit A2P registration directly to Twilio (no client outreach for A2P).
-  await submitA2PRegistration(supabase, a2pService.id, {
-    business_name: legalBusinessName.trim(),
-    ein: ein.trim(),
-    business_address: businessAddress.trim(),
-    business_city: businessCity.trim(),
-    business_state: businessState.trim(),
-    business_zip: businessZip.trim(),
-    business_phone: businessPhone.trim(),
-    contact_name: name.trim(),
-    contact_email: email.trim(),
-    use_case_description: useCase,
-    sample_messages: sampleMessages,
-  });
-
-  // Transition A2P service from pending_onboarding → in_progress now that it
-  // has actually been submitted to Twilio and is awaiting carrier approval.
-  // The a2p-manager's checkA2PStatus task will eventually flip it to 'delivered'
-  // when the campaign is VERIFIED.
-  await supabase
-    .from("client_services")
-    .update({ status: "in_progress", updated_at: new Date().toISOString() })
-    .eq("id", a2pService.id);
-
-  // 5. Pre-fill session_responses for the A2P service so the widget does not
-  //    re-ask these questions if this package also contains non-A2P services.
+  // 4. Pre-fill session_responses for the A2P service. For A2P-only packages
+  //    this captures everything the helper needs to fire Twilio immediately.
+  //    For multi-service packages it avoids re-asking the client for info the
+  //    agency has already collected. We also stash the agency's custom
+  //    `message_types` and `sample_messages` as JSON-encoded rows so the
+  //    trigger helper can reconstruct the exact use-case description.
   const a2pResponses: Array<{
     session_id: string;
     client_service_id: string;
@@ -199,6 +180,8 @@ export async function startManualOnboarding(formData: FormData) {
     { field_key: "business_phone", field_value: businessPhone.trim() },
     { field_key: "contact_name", field_value: name.trim() },
     { field_key: "contact_email", field_value: email.trim() },
+    { field_key: "message_types", field_value: JSON.stringify(messageTypes) },
+    { field_key: "sample_messages", field_value: JSON.stringify(sampleMessages) },
   ].map((f) => ({
     session_id: result.session_id,
     client_service_id: a2pService.id,
@@ -208,20 +191,49 @@ export async function startManualOnboarding(formData: FormData) {
   }));
   await supabase.from("session_responses").insert(a2pResponses);
 
-  // 6. Branch on package shape:
-  //    - A2P-only package → session is complete, agency has everything.
-  //    - Multi-service package → leave session active and queue the onboarding
-  //      outreach so the client fills in the remaining services via the widget.
-  if (nonA2pServices.length === 0) {
-    await supabase
-      .from("onboarding_sessions")
-      .update({
-        status: "completed",
-        completion_pct: 100,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", result.session_id);
-  } else {
+  // 5. Try to fire A2P to Twilio. The helper is the single source of truth
+  //    for "has the client finished onboarding?" — for an A2P-only package
+  //    every required field is now pre-filled so this fires immediately; for
+  //    a multi-service package this is a no-op and A2P will fire later from
+  //    the widget response endpoint when the client answers the last field.
+  //
+  //    A Twilio failure here should NOT block client creation — the client,
+  //    services, and session are all provisioned correctly and the agency
+  //    can retry from the client detail page. We log the failure so it's
+  //    visible on the client timeline.
+  let a2pFireError: string | null = null;
+  try {
+    const triggerResult = await maybeTriggerA2POnCompletion(
+      supabase,
+      result.session_id
+    );
+    if (!triggerResult.triggered && triggerResult.reason !== "incomplete") {
+      // "incomplete" is expected for multi-service packages; anything else
+      // signals a configuration problem worth surfacing.
+      a2pFireError = `A2P trigger skipped: ${triggerResult.reason}`;
+    }
+  } catch (err) {
+    a2pFireError = err instanceof Error ? err.message : String(err);
+  }
+
+  if (a2pFireError) {
+    await supabase.from("interaction_log").insert({
+      client_id: result.client_id,
+      session_id: result.session_id,
+      channel: "system",
+      direction: "outbound",
+      content_type: "system_event",
+      content: `A2P registration failed to submit to Twilio: ${a2pFireError}`,
+      metadata: { source: "manual_a2p", error: a2pFireError },
+    });
+  }
+
+  // 6. For multi-service packages, queue the welcome SMS so the client
+  //    finishes the remaining services via the widget. A2P-only packages
+  //    need no outreach — the agency already provided every required field,
+  //    and the onboarding session will close automatically once A2P is
+  //    VERIFIED by Twilio (see task-processor.checkForCompletedSessions).
+  if (nonA2pServices.length > 0) {
     await supabase.from("outreach_queue").insert({
       client_id: result.client_id,
       session_id: result.session_id,
@@ -238,9 +250,23 @@ export async function startManualOnboarding(formData: FormData) {
       priority: "normal",
       escalation_level: 1,
     });
+  } else {
+    // A2P-only package: bump completion_pct to 100 since there are no
+    // widget questions to answer. Session status stays 'active' until the
+    // cron flips it to 'completed' after Twilio VERIFIED.
+    await supabase
+      .from("onboarding_sessions")
+      .update({
+        completion_pct: 100,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", result.session_id);
   }
 
-  // 7. Log the event.
+  // 7. Log the event. For A2P-only packages the trigger helper above has
+  //    already submitted to Twilio; for multi-service packages A2P will fire
+  //    from the widget response endpoint once the client finishes their
+  //    onboarding, so we log that A2P is queued rather than submitted.
   await supabase.from("interaction_log").insert({
     client_id: result.client_id,
     session_id: result.session_id,
@@ -250,7 +276,7 @@ export async function startManualOnboarding(formData: FormData) {
     content:
       nonA2pServices.length === 0
         ? `A2P registration submitted by agency. Message types: ${selectedLabels.join(", ")}`
-        : `A2P registration submitted by agency (${selectedLabels.join(", ")}). Onboarding queued for ${nonA2pServices.length} additional service(s).`,
+        : `A2P data collected by agency (${selectedLabels.join(", ")}). Onboarding queued for ${nonA2pServices.length} additional service(s); A2P will fire to Twilio once the client completes their widget.`,
     metadata: {
       message_types: messageTypes,
       source: "manual_a2p",

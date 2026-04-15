@@ -13,6 +13,7 @@ export {
 export {
   submitA2PRegistration,
   checkA2PStatus,
+  maybeTriggerA2POnCompletion,
   type A2PRegistrationData,
 } from "./a2p-manager";
 
