@@ -295,6 +295,7 @@ export async function submitA2PFromOnboarding(
     // --- 2. Fire the shared trigger ---
     const result = await triggerA2PSubmission(
       supabase,
+      orgId,
       clientId,
       clientServiceId,
       "manual_start_a2p_submission",

@@ -33,28 +33,32 @@ export interface A2PRegistrationData {
   sample_messages: string[];
 }
 
-interface TwilioA2PConfig {
+/**
+ * Decrypted Twilio credentials for a single org. Callers pass these in
+ * so the a2p-manager stays tenant-scoped — the previous `process.env.TWILIO_*`
+ * lookup made the whole file read a platform-wide secret that never
+ * matched whatever Greg (or a tenant) had configured in Settings →
+ * Integrations. Shape matches `OrgCredentials.twilio` from
+ * `packages/shared/src/types/index.ts` so upstream callers can hand it
+ * through directly from `getOrgCredentials(supabase, orgId).twilio`.
+ */
+export interface TwilioA2PConfig {
   accountSid: string;
   authToken: string;
   phoneNumber: string;
 }
 
-function getTwilioConfig(): TwilioA2PConfig {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const phoneNumber = process.env.TWILIO_PHONE_NUMBER;
-
-  if (!accountSid || !authToken || !phoneNumber) {
-    throw new Error(
-      "Missing Twilio config: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER"
-    );
-  }
-
-  return { accountSid, authToken, phoneNumber };
+/**
+ * Decrypted GHL credentials needed for the post-A2P "push phone number to
+ * GHL" step. Same rationale as `TwilioA2PConfig`: previously read from
+ * `process.env.GHL_API_KEY`, now passed in from the caller after looking
+ * it up on the org row.
+ */
+export interface A2PGhlConfig {
+  apiKey: string;
 }
 
-function getAuthHeader(): string {
-  const config = getTwilioConfig();
+function getAuthHeader(config: TwilioA2PConfig): string {
   return `Basic ${Buffer.from(`${config.accountSid}:${config.authToken}`).toString("base64")}`;
 }
 
@@ -62,8 +66,13 @@ function getAuthHeader(): string {
  * Make a request to Twilio APIs.
  * Supports Trust Hub, Messaging, and Core APIs.
  * For array parameters (like MessageSamples), pass them as repeated keys in the body.
+ *
+ * Takes the per-org `TwilioA2PConfig` explicitly instead of reading it
+ * from the environment so the same a2p-manager can serve multiple tenants
+ * from a single deploy.
  */
 async function twilioRequest(
+  config: TwilioA2PConfig,
   path: string,
   options: {
     method?: string;
@@ -71,7 +80,6 @@ async function twilioRequest(
     api?: "trusthub" | "messaging" | "core";
   } = {}
 ): Promise<Record<string, unknown>> {
-  const config = getTwilioConfig();
   const api = options.api || "trusthub";
 
   let baseUrl: string;
@@ -87,7 +95,7 @@ async function twilioRequest(
   }
 
   const headers: Record<string, string> = {
-    Authorization: getAuthHeader(),
+    Authorization: getAuthHeader(config),
   };
 
   let requestBody: string | undefined;
@@ -126,8 +134,12 @@ async function twilioRequest(
  * Look up the PhoneNumberSid (PN...) for an E.164 phone number.
  * Twilio Messaging Service requires the SID, not the number.
  */
-async function lookupPhoneNumberSid(phoneNumber: string): Promise<string> {
+async function lookupPhoneNumberSid(
+  config: TwilioA2PConfig,
+  phoneNumber: string
+): Promise<string> {
   const result = await twilioRequest(
+    config,
     `/IncomingPhoneNumbers.json?PhoneNumber=${encodeURIComponent(phoneNumber)}`,
     { api: "core" }
   );
@@ -143,11 +155,18 @@ async function lookupPhoneNumberSid(phoneNumber: string): Promise<string> {
 /**
  * Submits an A2P 10DLC registration via Twilio API.
  * Multi-step: Customer Profile → Brand Registration → (async approval) → Messaging Service → Campaign
+ *
+ * Callers must provide the tenant's decrypted Twilio credentials —
+ * previously this function read `process.env.TWILIO_*`, which never
+ * matched the per-org credentials Greg configures in Settings →
+ * Integrations. Use `getOrgCredentials(supabase, orgId).twilio` at the
+ * call site and pass the result through.
  */
 export async function submitA2PRegistration(
   supabase: SupabaseClient,
   clientServiceId: string,
-  data: A2PRegistrationData
+  data: A2PRegistrationData,
+  twilioConfig: TwilioA2PConfig
 ): Promise<ServiceTask> {
   // Create a service task to track the registration
   const { data: task, error } = await supabase
@@ -170,7 +189,7 @@ export async function submitA2PRegistration(
 
   try {
     // Step 1: Create Customer Profile (Trust Hub)
-    const customerProfile = await twilioRequest("/CustomerProfiles", {
+    const customerProfile = await twilioRequest(twilioConfig, "/CustomerProfiles", {
       method: "POST",
       body: {
         FriendlyName: `${data.business_name} A2P Profile`,
@@ -183,7 +202,7 @@ export async function submitA2PRegistration(
     const customerProfileSid = customerProfile.sid as string;
 
     // Add business info as EndUser to the profile
-    const endUser = await twilioRequest("/EndUsers", {
+    const endUser = await twilioRequest(twilioConfig, "/EndUsers", {
       method: "POST",
       body: {
         FriendlyName: data.business_name,
@@ -203,15 +222,19 @@ export async function submitA2PRegistration(
     });
 
     // Assign EndUser to Customer Profile
-    await twilioRequest(`/CustomerProfiles/${customerProfileSid}/EntityAssignments`, {
-      method: "POST",
-      body: {
-        ObjectSid: endUser.sid as string,
-      },
-    });
+    await twilioRequest(
+      twilioConfig,
+      `/CustomerProfiles/${customerProfileSid}/EntityAssignments`,
+      {
+        method: "POST",
+        body: {
+          ObjectSid: endUser.sid as string,
+        },
+      }
+    );
 
     // Add authorized representative
-    const authorizedRep = await twilioRequest("/EndUsers", {
+    const authorizedRep = await twilioRequest(twilioConfig, "/EndUsers", {
       method: "POST",
       body: {
         FriendlyName: data.contact_name,
@@ -227,23 +250,32 @@ export async function submitA2PRegistration(
       },
     });
 
-    await twilioRequest(`/CustomerProfiles/${customerProfileSid}/EntityAssignments`, {
-      method: "POST",
-      body: {
-        ObjectSid: authorizedRep.sid as string,
-      },
-    });
+    await twilioRequest(
+      twilioConfig,
+      `/CustomerProfiles/${customerProfileSid}/EntityAssignments`,
+      {
+        method: "POST",
+        body: {
+          ObjectSid: authorizedRep.sid as string,
+        },
+      }
+    );
 
     // Submit customer profile for evaluation
-    await twilioRequest(`/CustomerProfiles/${customerProfileSid}/Evaluations`, {
-      method: "POST",
-      body: {
-        PolicySid: "RN806dd6cd175f314e1f96a9727ee271f4",
-      },
-    });
+    await twilioRequest(
+      twilioConfig,
+      `/CustomerProfiles/${customerProfileSid}/Evaluations`,
+      {
+        method: "POST",
+        body: {
+          PolicySid: "RN806dd6cd175f314e1f96a9727ee271f4",
+        },
+      }
+    );
 
     // Step 2: Create A2P Brand Registration
     const brandRegistration = await twilioRequest(
+      twilioConfig,
       "/a2p/BrandRegistrations",
       {
         method: "POST",
@@ -300,16 +332,22 @@ export async function submitA2PRegistration(
 /**
  * Checks the status of a pending A2P registration.
  * Handles the multi-step flow: brand approval → messaging service + campaign → campaign approval
+ *
+ * Takes the per-org Twilio credentials explicitly. The optional GHL
+ * config is used only when the campaign reaches VERIFIED — at that
+ * point we push the freshly-verified phone number to the client's GHL
+ * subaccount (if they have one).
  */
 export async function checkA2PStatus(
   supabase: SupabaseClient,
-  task: ServiceTask
+  task: ServiceTask,
+  twilioConfig: TwilioA2PConfig,
+  ghlConfig?: A2PGhlConfig
 ): Promise<ServiceTaskStatus> {
   const lastResult = task.last_result as Record<string, unknown> | null;
   if (!lastResult) return task.status;
 
   const step = lastResult.step as string;
-  const config = getTwilioConfig();
 
   try {
     if (step === "brand_registration") {
@@ -317,9 +355,13 @@ export async function checkA2PStatus(
       const brandSid = task.external_ref;
       if (!brandSid) return task.status;
 
-      const brand = await twilioRequest(`/a2p/BrandRegistrations/${brandSid}`, {
-        api: "messaging",
-      });
+      const brand = await twilioRequest(
+        twilioConfig,
+        `/a2p/BrandRegistrations/${brandSid}`,
+        {
+          api: "messaging",
+        }
+      );
 
       const brandStatus = brand.status as string;
 
@@ -327,7 +369,7 @@ export async function checkA2PStatus(
         const data = lastResult.submitted_data as A2PRegistrationData;
 
         // Step 3: Create Messaging Service
-        const msgServiceResult = await twilioRequest("/Services", {
+        const msgServiceResult = await twilioRequest(twilioConfig, "/Services", {
           method: "POST",
           body: {
             FriendlyName: `${data.business_name} SMS`,
@@ -340,16 +382,23 @@ export async function checkA2PStatus(
         const messagingServiceSid = (msgServiceResult as Record<string, string>).sid;
 
         // Look up the PhoneNumberSid from the E.164 number
-        const phoneNumberSid = await lookupPhoneNumberSid(config.phoneNumber);
+        const phoneNumberSid = await lookupPhoneNumberSid(
+          twilioConfig,
+          twilioConfig.phoneNumber
+        );
 
         // Add phone number to messaging service
-        await twilioRequest(`/Services/${messagingServiceSid}/PhoneNumbers`, {
-          method: "POST",
-          body: {
-            PhoneNumberSid: phoneNumberSid,
-          },
-          api: "messaging",
-        });
+        await twilioRequest(
+          twilioConfig,
+          `/Services/${messagingServiceSid}/PhoneNumbers`,
+          {
+            method: "POST",
+            body: {
+              PhoneNumberSid: phoneNumberSid,
+            },
+            api: "messaging",
+          }
+        );
 
         // Step 4: Create A2P Campaign (Usa2p) — under the Messaging Service
         const sampleMessages = data.sample_messages.length >= 2
@@ -360,6 +409,7 @@ export async function checkA2PStatus(
             ];
 
         const campaign = await twilioRequest(
+          twilioConfig,
           `/Services/${messagingServiceSid}/Compliance/Usa2p`,
           {
             method: "POST",
@@ -438,6 +488,7 @@ export async function checkA2PStatus(
       if (!campaignSid || !messagingServiceSid) return task.status;
 
       const campaign = await twilioRequest(
+        twilioConfig,
         `/Services/${messagingServiceSid}/Compliance/Usa2p/${campaignSid}`,
         { api: "messaging" }
       );
@@ -469,8 +520,12 @@ export async function checkA2PStatus(
           })
           .eq("id", task.client_service_id);
 
-        // Push verified phone number to GHL subaccount
-        await pushPhoneToGHL(supabase, task);
+        // Push verified phone number to GHL subaccount (only if the org
+        // has GHL configured — otherwise we just log and move on, the
+        // A2P task is still considered complete).
+        if (ghlConfig) {
+          await pushPhoneToGHL(supabase, task, twilioConfig, ghlConfig);
+        }
 
         return "completed";
       } else if (campaignStatus === "FAILED") {
@@ -527,15 +582,19 @@ export async function checkA2PStatus(
  *
  * GHL API: POST /locations/{locationId}/phone-numbers
  * Docs: https://highlevel.stoplight.io/docs/integrations
+ *
+ * Both Twilio and GHL credentials are passed in by the caller so this
+ * function stays tenant-aware — no `process.env` reads.
  */
 async function pushPhoneToGHL(
   supabase: SupabaseClient,
-  task: ServiceTask
+  task: ServiceTask,
+  twilioConfig: TwilioA2PConfig,
+  ghlConfig: A2PGhlConfig
 ): Promise<void> {
   const lastResult = task.last_result as Record<string, unknown> | null;
   if (!lastResult) return;
 
-  const config = getTwilioConfig();
   const messagingServiceSid = lastResult.messaging_service_sid as string;
 
   // Resolve client from service task → client_service → client
@@ -558,9 +617,6 @@ async function pushPhoneToGHL(
 
   if (!typedClient.ghl_sub_account_id) return; // No GHL subaccount — skip
 
-  const ghlApiKey = process.env.GHL_API_KEY;
-  if (!ghlApiKey) return; // GHL not configured — skip silently
-
   try {
     // Add the Twilio phone number to the GHL subaccount
     const response = await fetch(
@@ -568,16 +624,16 @@ async function pushPhoneToGHL(
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${ghlApiKey}`,
+          Authorization: `Bearer ${ghlConfig.apiKey}`,
           "Content-Type": "application/json",
           Version: "2021-07-28",
         },
         body: JSON.stringify({
           locationId: typedClient.ghl_sub_account_id,
-          name: `A2P Verified - ${config.phoneNumber}`,
-          number: config.phoneNumber,
-          twilioAccountSid: config.accountSid,
-          twilioAuthToken: config.authToken,
+          name: `A2P Verified - ${twilioConfig.phoneNumber}`,
+          number: twilioConfig.phoneNumber,
+          twilioAccountSid: twilioConfig.accountSid,
+          twilioAuthToken: twilioConfig.authToken,
           messagingServiceSid: messagingServiceSid || undefined,
         }),
       }
@@ -603,7 +659,7 @@ async function pushPhoneToGHL(
       channel: "system",
       direction: "outbound",
       content_type: "system_event",
-      content: `A2P verified phone number ${config.phoneNumber} added to GHL subaccount`,
+      content: `A2P verified phone number ${twilioConfig.phoneNumber} added to GHL subaccount`,
       metadata: {
         task_id: task.id,
         ghl_location: typedClient.ghl_sub_account_id,

@@ -284,6 +284,7 @@ export async function POST(request: Request) {
           try {
             const result = await triggerA2PSubmission(
               supabase,
+              capturedOrgId,
               capturedClientId,
               serviceId,
               "auto_trigger_on_onboarding_submit"

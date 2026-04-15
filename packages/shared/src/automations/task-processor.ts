@@ -6,8 +6,37 @@ import { checkGMBAccessStatus } from "./gmb-manager";
 import { sendSMS } from "../comms/twilio-sms";
 import { resolveTemplate, type TemplateParams } from "../comms/message-templates";
 import { createEscalation } from "./escalation-notifier";
+import { getOrgCredentials } from "../tenant/org-manager";
 
 const log = createRouteLogger("automations/task-processor");
+
+/**
+ * Resolve the owning org_id for a `service_tasks` row by walking
+ * client_services → clients → org_id. Returns null if any join is
+ * missing (e.g. the client_service was deleted). Used by automations
+ * that need per-tenant credentials instead of global `process.env.*`.
+ */
+async function resolveOrgIdForTask(
+  supabase: SupabaseClient,
+  task: ServiceTask
+): Promise<string | null> {
+  const { data: clientService } = await supabase
+    .from("client_services")
+    .select("client_id")
+    .eq("id", task.client_service_id)
+    .single();
+
+  const clientId = (clientService as Record<string, string> | null)?.client_id;
+  if (!clientId) return null;
+
+  const { data: client } = await supabase
+    .from("clients")
+    .select("org_id")
+    .eq("id", clientId)
+    .single();
+
+  return (client as Record<string, string> | null)?.org_id || null;
+}
 
 /**
  * Move a failed task to the dead letter queue after 5+ failures.
@@ -130,7 +159,32 @@ export async function processServiceTasks(
 
       switch (task.task_type) {
         case "a2p_registration": {
-          newStatus = await checkA2PStatus(supabase, task);
+          // Resolve the org this task belongs to so we can load its
+          // per-tenant Twilio credentials. Previously `checkA2PStatus`
+          // read `process.env.TWILIO_*` which never matched what Greg
+          // had configured in Settings → Integrations.
+          const orgId = await resolveOrgIdForTask(supabase, task);
+          if (!orgId) {
+            log.warn(
+              { task_id: task.id },
+              "Cannot poll A2P task: unable to resolve org_id — leaving task for next cron"
+            );
+            break;
+          }
+          const creds = await getOrgCredentials(supabase, orgId);
+          if (!creds.twilio) {
+            log.warn(
+              { task_id: task.id, org_id: orgId },
+              "Cannot poll A2P task: org has no Twilio credentials configured"
+            );
+            break;
+          }
+          newStatus = await checkA2PStatus(
+            supabase,
+            task,
+            creds.twilio,
+            creds.ghl ? { apiKey: creds.ghl.apiKey } : undefined
+          );
           break;
         }
 

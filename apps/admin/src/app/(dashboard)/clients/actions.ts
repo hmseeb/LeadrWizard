@@ -1,7 +1,7 @@
 "use server";
 
 import { createSupabaseServerClient, createSupabaseServiceClient } from "@/lib/supabase-server";
-import { getUserOrg } from "@leadrwizard/shared/tenant";
+import { getUserOrg, getOrgCredentials } from "@leadrwizard/shared/tenant";
 import { submitA2PRegistration } from "@leadrwizard/shared/automations";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -158,19 +158,35 @@ export async function startManualOnboarding(formData: FormData) {
   }
 
   // 4. Submit A2P registration directly to Twilio (no client outreach for A2P).
-  await submitA2PRegistration(supabase, a2pService.id, {
-    business_name: legalBusinessName.trim(),
-    ein: ein.trim(),
-    business_address: businessAddress.trim(),
-    business_city: businessCity.trim(),
-    business_state: businessState.trim(),
-    business_zip: businessZip.trim(),
-    business_phone: businessPhone.trim(),
-    contact_name: name.trim(),
-    contact_email: email.trim(),
-    use_case_description: useCase,
-    sample_messages: sampleMessages,
-  });
+  // Load tenant's decrypted Twilio creds — a2p-manager is org-aware and
+  // will throw if they're missing. Fail loudly here so Greg sees the
+  // "configure Twilio in Settings" message before the client row sits
+  // with a half-provisioned service_task.
+  const creds = await getOrgCredentials(supabase, orgId);
+  if (!creds.twilio) {
+    throw new Error(
+      "Twilio is not configured for this organization. Add your Twilio Account SID, Auth Token, and phone number in Settings → Integrations before starting a manual A2P onboarding."
+    );
+  }
+
+  await submitA2PRegistration(
+    supabase,
+    a2pService.id,
+    {
+      business_name: legalBusinessName.trim(),
+      ein: ein.trim(),
+      business_address: businessAddress.trim(),
+      business_city: businessCity.trim(),
+      business_state: businessState.trim(),
+      business_zip: businessZip.trim(),
+      business_phone: businessPhone.trim(),
+      contact_name: name.trim(),
+      contact_email: email.trim(),
+      use_case_description: useCase,
+      sample_messages: sampleMessages,
+    },
+    creds.twilio
+  );
 
   // Transition A2P service from pending_onboarding → in_progress now that it
   // has actually been submitted to Twilio and is awaiting carrier approval.

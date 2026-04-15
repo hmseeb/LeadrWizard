@@ -28,6 +28,7 @@ import {
   submitA2PRegistration,
   type A2PRegistrationData,
 } from "@leadrwizard/shared/automations";
+import { getOrgCredentials } from "@leadrwizard/shared/tenant";
 
 type ServiceClient = ReturnType<typeof createSupabaseServiceClient>;
 
@@ -245,6 +246,12 @@ export type A2PTriggerResult =
  * Assumes the caller has already scope-checked `client_services` to the
  * acting org — this helper deliberately does not re-check.
  *
+ * Takes `orgId` so it can load the tenant's decrypted Twilio credentials
+ * via `getOrgCredentials` and pass them through to the shared
+ * `submitA2PRegistration`. Previously the underlying a2p-manager read
+ * `process.env.TWILIO_*`, which never matched the per-org creds Greg
+ * configures in Settings → Integrations.
+ *
  * Refuses to double-submit if a non-terminal `service_tasks` row already
  * exists for this client_service. The button UI keys off this so a
  * second click while a brand is awaiting carrier approval does not
@@ -252,13 +259,28 @@ export type A2PTriggerResult =
  */
 export async function triggerA2PSubmission(
   supabase: ServiceClient,
+  orgId: string,
   clientId: string,
   clientServiceId: string,
   source: A2PTriggerSource,
   overrides?: StartA2PSubmissionOverrides
 ): Promise<A2PTriggerResult> {
   try {
-    // 1. Refuse if there's already a live submission. Terminal statuses
+    // 1. Load per-org Twilio credentials. Fail early with a clear
+    // message — we don't want to create a service_tasks row that
+    // immediately flips to failed because the underlying Twilio call
+    // had no auth header.
+    const creds = await getOrgCredentials(supabase, orgId);
+    if (!creds.twilio) {
+      return {
+        ok: false,
+        error:
+          "Twilio is not configured for this organization. Add your Twilio Account SID, Auth Token, and phone number in Settings → Integrations before submitting A2P registrations.",
+      };
+    }
+    const twilioConfig = creds.twilio;
+
+    // 2. Refuse if there's already a live submission. Terminal statuses
     // (completed, failed) are treated as "free to retry" so Greg can fix
     // a rejected brand and resubmit without manual cleanup.
     const { data: existingTask } = await supabase
@@ -284,7 +306,7 @@ export async function triggerA2PSubmission(
       };
     }
 
-    // 2. Resolve inputs
+    // 3. Resolve inputs
     const resolved = await resolveA2PInput(
       supabase,
       clientId,
@@ -292,17 +314,18 @@ export async function triggerA2PSubmission(
       overrides
     );
 
-    // 3. Submit to Twilio. submitA2PRegistration creates the service_tasks
+    // 4. Submit to Twilio. submitA2PRegistration creates the service_tasks
     // row, calls the Trust Hub + Brand APIs, and updates the row with the
     // resulting brandSid + step. Throws on Twilio errors after marking
     // the task as failed.
     const task: ServiceTask = await submitA2PRegistration(
       supabase,
       clientServiceId,
-      resolved
+      resolved,
+      twilioConfig
     );
 
-    // 4. Flip the client_services row to in_progress so the badge stops
+    // 5. Flip the client_services row to in_progress so the badge stops
     // saying "ready_to_deliver" — the carrier now owns the next step.
     await supabase
       .from("client_services")
@@ -312,7 +335,7 @@ export async function triggerA2PSubmission(
       })
       .eq("id", clientServiceId);
 
-    // 5. Log to interaction_log so the timeline shows the submission.
+    // 6. Log to interaction_log so the timeline shows the submission.
     await supabase.from("interaction_log").insert({
       client_id: clientId,
       channel: "system",
