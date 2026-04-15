@@ -17,6 +17,7 @@ import {
   triggerGoosekitWebsiteBuild,
   type StartWebsiteBuildOverrides as SharedStartWebsiteBuildOverrides,
 } from "@/lib/website-build-trigger";
+import { triggerA2PRegistration } from "@/lib/a2p-trigger";
 import { deriveRepoName } from "@leadrwizard/shared/automations";
 import { revalidatePath } from "next/cache";
 
@@ -211,6 +212,95 @@ export async function markClientServiceDelivered(
   });
 
   revalidatePath(`/clients/${clientId}`);
+}
+
+/**
+ * Manually fire an A2P 10DLC registration for a client's
+ * `a2p-registration` service.
+ *
+ * This is the "button on the client detail page" path — used when the
+ * widget auto-trigger didn't fire (missing fields, Twilio creds weren't
+ * configured at submit time, or the call threw), or when a previous
+ * submission `failed` and Greg wants to retry without going through the
+ * admin "New A2P client" form again.
+ *
+ * The heavy lifting lives in `triggerA2PRegistration` which handles:
+ *   - credential pre-flight
+ *   - duplicate-submit guard (blocks if a task is already in flight)
+ *   - resolving inputs from session_responses + clients row
+ *   - Twilio env-var trampoline
+ *   - flipping client_services.status → in_progress
+ *   - interaction_log entry tagged with the source
+ *
+ * We just scope-check the row to the caller's org and wrap the result
+ * in the same `{ ok, error }` envelope the other server actions in
+ * this file use so the button UI can surface the error inline.
+ */
+export async function startA2PRegistration(
+  clientId: string,
+  clientServiceId: string
+): Promise<
+  | { ok: true; taskId: string; brandSid: string | null }
+  | { ok: false; error: string }
+> {
+  try {
+    const { supabase, orgId } = await getAuthedOrg();
+
+    const { data: cs } = await supabase
+      .from("client_services")
+      .select(
+        "id, client_id, status, opted_out, client:clients(org_id), service:service_definitions(slug, name)"
+      )
+      .eq("id", clientServiceId)
+      .single();
+
+    if (!cs) throw new Error("Service not found");
+    const csRow = cs as unknown as {
+      id: string;
+      client_id: string;
+      status: string;
+      opted_out: boolean;
+      client: { org_id: string } | null;
+      service: { slug: string; name: string } | null;
+    };
+
+    if (csRow.client?.org_id !== orgId) {
+      throw new Error("Insufficient permissions");
+    }
+    if (csRow.client_id !== clientId) throw new Error("Client mismatch");
+    if (csRow.opted_out) throw new Error("Client has opted out of this service");
+    if (csRow.service?.slug !== "a2p-registration") {
+      throw new Error(
+        `startA2PRegistration called on non-A2P service: ${csRow.service?.slug}`
+      );
+    }
+    if (csRow.status === "delivered") {
+      throw new Error("A2P registration is already marked delivered");
+    }
+
+    const result = await triggerA2PRegistration(
+      supabase,
+      orgId,
+      clientId,
+      clientServiceId,
+      { source: "manual_start_a2p_registration" }
+    );
+
+    revalidatePath(`/clients/${clientId}`);
+    if (!result.ok) {
+      return { ok: false, error: result.error };
+    }
+    return { ok: true, taskId: result.taskId, brandSid: result.brandSid };
+  } catch (err) {
+    console.error("[startA2PRegistration] failed:", err);
+    return {
+      ok: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Unknown error starting A2P registration",
+    };
+  }
 }
 
 /**

@@ -8,6 +8,7 @@ import type {
 } from "@leadrwizard/shared/types";
 import { createRouteLogger } from "@leadrwizard/shared/utils";
 import { triggerDefaultWebsiteBuild } from "@/lib/website-build-trigger";
+import { triggerA2PRegistration } from "@/lib/a2p-trigger";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -119,6 +120,12 @@ export async function POST(request: Request) {
     // Services that just transitioned AND are the website-build service —
     // these are the ones we fire the auto-trigger on.
     const websiteBuildServiceIds: string[] = [];
+    // Same pattern for A2P: services that just finished collecting their
+    // required fields and are the a2p-registration service need to kick
+    // the Twilio Trust Hub + Brand Registration flow. The actual trigger
+    // runs inside `after()` below so the HTTP response doesn't wait on
+    // Twilio — A2P submission hits four Twilio endpoints in sequence.
+    const a2pServiceIds: string[] = [];
 
     for (const cs of clientServices || []) {
       const row = cs as Record<string, unknown>;
@@ -154,6 +161,9 @@ export async function POST(request: Request) {
         readyServiceIds.push(cs.id as string);
         if (definition?.slug === "website-build") {
           websiteBuildServiceIds.push(cs.id as string);
+        }
+        if (definition?.slug === "a2p-registration") {
+          a2pServiceIds.push(cs.id as string);
         }
       }
     }
@@ -222,6 +232,64 @@ export async function POST(request: Request) {
                 correlation_id: correlationId,
                 org_id: capturedOrgId,
                 auto_trigger: "website_build",
+              },
+              extra: { client_service_id: serviceId },
+            });
+          }
+        }
+      });
+    }
+
+    // --- Auto-trigger A2P registration(s) ---
+    // Same pattern as website build: defer to `after()` so the HTTP
+    // response returns before we start hitting Twilio (submission
+    // makes ~6 sequential Twilio API calls and takes multiple seconds).
+    // Failures are logged but intentionally don't block the response —
+    // the service sits at `ready_to_deliver` and Greg can retry via the
+    // "Start A2P registration" button on the client detail page.
+    if (a2pServiceIds.length > 0 && session.client_id && orgId) {
+      const capturedClientId = session.client_id as string;
+      const capturedOrgId = orgId;
+      const a2pServiceIdsToFire = [...a2pServiceIds];
+      after(async () => {
+        for (const serviceId of a2pServiceIdsToFire) {
+          try {
+            const result = await triggerA2PRegistration(
+              supabase,
+              capturedOrgId,
+              capturedClientId,
+              serviceId,
+              { source: "auto_trigger_on_onboarding_submit" }
+            );
+            if (!result.ok) {
+              log.warn(
+                {
+                  client_service_id: serviceId,
+                  reason: result.reason,
+                  error: result.error,
+                },
+                "Auto-trigger A2P registration failed — service left at ready_to_deliver for manual retry"
+              );
+            } else {
+              log.info(
+                {
+                  client_service_id: serviceId,
+                  task_id: result.taskId,
+                  brand_sid: result.brandSid,
+                },
+                "Auto-trigger A2P registration submitted to Twilio"
+              );
+            }
+          } catch (err) {
+            log.error(
+              { err, client_service_id: serviceId },
+              "Auto-trigger A2P registration threw"
+            );
+            Sentry.captureException(err, {
+              tags: {
+                correlation_id: correlationId,
+                org_id: capturedOrgId,
+                auto_trigger: "a2p_registration",
               },
               extra: { client_service_id: serviceId },
             });

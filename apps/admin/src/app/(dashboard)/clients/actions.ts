@@ -2,7 +2,7 @@
 
 import { createSupabaseServerClient, createSupabaseServiceClient } from "@/lib/supabase-server";
 import { getUserOrg } from "@leadrwizard/shared/tenant";
-import { submitA2PRegistration } from "@leadrwizard/shared/automations";
+import { triggerA2PRegistration } from "@/lib/a2p-trigger";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -60,7 +60,10 @@ export async function startManualOnboarding(formData: FormData) {
   if (!businessPhone) throw new Error("Business phone is required");
   if (messageTypes.length === 0) throw new Error("Select at least one message type");
 
-  // Build use case description from selected message types
+  // Human-readable labels for logging — the shared a2p-trigger helper
+  // builds the actual use-case description Twilio submits, from the
+  // same `messageTypes` keys we pass down as overrides. We only use
+  // these labels in the interaction_log summary below.
   const messageTypeLabels: Record<string, string> = {
     appointment_reminders: "appointment reminders",
     missed_call_textback: "missed call follow-ups",
@@ -72,7 +75,6 @@ export async function startManualOnboarding(formData: FormData) {
     follow_up: "post-service follow-ups",
   };
   const selectedLabels = messageTypes.map((t) => messageTypeLabels[t] || t);
-  const useCase = `${legalBusinessName} sends ${selectedLabels.join(", ")} to customers who have opted in to receive text messages. Customers can opt out at any time by replying STOP. Reply HELP for support. Msg & data rates may apply.`;
 
   // 1. Provision client (creates client, session, client_services)
   const paymentRef = `manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -157,32 +159,12 @@ export async function startManualOnboarding(formData: FormData) {
     );
   }
 
-  // 4. Submit A2P registration directly to Twilio (no client outreach for A2P).
-  await submitA2PRegistration(supabase, a2pService.id, {
-    business_name: legalBusinessName.trim(),
-    ein: ein.trim(),
-    business_address: businessAddress.trim(),
-    business_city: businessCity.trim(),
-    business_state: businessState.trim(),
-    business_zip: businessZip.trim(),
-    business_phone: businessPhone.trim(),
-    contact_name: name.trim(),
-    contact_email: email.trim(),
-    use_case_description: useCase,
-    sample_messages: sampleMessages,
-  });
-
-  // Transition A2P service from pending_onboarding → in_progress now that it
-  // has actually been submitted to Twilio and is awaiting carrier approval.
-  // The a2p-manager's checkA2PStatus task will eventually flip it to 'delivered'
-  // when the campaign is VERIFIED.
-  await supabase
-    .from("client_services")
-    .update({ status: "in_progress", updated_at: new Date().toISOString() })
-    .eq("id", a2pService.id);
-
-  // 5. Pre-fill session_responses for the A2P service so the widget does not
-  //    re-ask these questions if this package also contains non-A2P services.
+  // 4. Pre-fill session_responses for the A2P service BEFORE firing the
+  //    registration so the shared a2p-trigger helper can read them back
+  //    via resolveA2PInput, exactly like the widget and manual-retry
+  //    paths do. Also ensures the widget doesn't re-ask these questions
+  //    if this package contains non-A2P services that still need the
+  //    client's attention.
   const a2pResponses: Array<{
     session_id: string;
     client_service_id: string;
@@ -207,6 +189,26 @@ export async function startManualOnboarding(formData: FormData) {
     answered_via: "click",
   }));
   await supabase.from("session_responses").insert(a2pResponses);
+
+  // 5. Submit A2P registration via the shared trigger helper. The
+  //    helper handles credential pre-flight, duplicate-submit guard,
+  //    resolving the inputs from session_responses we just inserted,
+  //    env-var trampoline for Twilio creds, flipping the service to
+  //    in_progress, and writing the interaction_log entry. We pass
+  //    messageTypes + sampleMessages as overrides so the helper
+  //    synthesises the same use-case description this form used to
+  //    build inline.
+  const a2pResult = await triggerA2PRegistration(
+    supabase,
+    orgId,
+    result.client_id,
+    a2pService.id,
+    { source: "manual_a2p_onboarding" },
+    { messageTypes, sampleMessages }
+  );
+  if (!a2pResult.ok) {
+    throw new Error(`A2P registration failed: ${a2pResult.error}`);
+  }
 
   // 6. Branch on package shape:
   //    - A2P-only package → session is complete, agency has everything.

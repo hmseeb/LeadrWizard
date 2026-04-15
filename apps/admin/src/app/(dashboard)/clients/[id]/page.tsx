@@ -4,6 +4,7 @@ import { CopyOnboardingLink } from "./copy-onboarding-link";
 import { GhlSubaccountPanel } from "./ghl-subaccount-panel";
 import { MarkDeliveredButton } from "./mark-delivered-button";
 import { StartWebsiteBuildButton } from "./start-website-build-button";
+import { StartA2PRegistrationButton } from "./start-a2p-registration-button";
 import { EditWebsitePanel } from "./edit-website-panel";
 import { DeleteClientPanel } from "./delete-client-panel";
 
@@ -148,6 +149,16 @@ export default async function ClientDetailPage({
               !cs.opted_out &&
               service?.slug === "website-build" &&
               cs.status !== "delivered";
+            // Start A2P Registration mirrors the website-build button.
+            // Shown for the a2p-registration service in any
+            // pre-delivered state — the server-side duplicate-submit
+            // guard blocks a double-fire if a registration is already
+            // in flight on Twilio's side, and allows a retry when the
+            // previous attempt failed.
+            const canStartA2PRegistration =
+              !cs.opted_out &&
+              service?.slug === "a2p-registration" &&
+              cs.status !== "delivered";
             return (
               <div
                 key={cs.id}
@@ -163,7 +174,9 @@ export default async function ClientDetailPage({
                     {serviceStatusLabel(cs.status, cs.opted_out)}
                   </span>
                 </div>
-                {(canStartWebsiteBuild || canMarkDelivered) && (
+                {(canStartWebsiteBuild ||
+                  canStartA2PRegistration ||
+                  canMarkDelivered) && (
                   <div className="mt-3 space-y-2">
                     {canStartWebsiteBuild && (
                       <StartWebsiteBuildButton
@@ -173,6 +186,13 @@ export default async function ClientDetailPage({
                         initialGoosekitStatus={cs.goosekit_job_status ?? null}
                         initialGoosekitLiveUrl={cs.goosekit_live_url ?? null}
                         initialGoosekitError={cs.goosekit_error ?? null}
+                      />
+                    )}
+                    {canStartA2PRegistration && (
+                      <StartA2PRegistrationButton
+                        clientId={id}
+                        clientServiceId={cs.id}
+                        currentStatus={cs.status}
                       />
                     )}
                     {canMarkDelivered && (
