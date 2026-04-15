@@ -113,7 +113,7 @@ export async function POST(request: Request) {
 
     const { data: allResponses } = await supabase
       .from("session_responses")
-      .select("field_key, client_service_id")
+      .select("field_key, field_value, client_service_id")
       .eq("session_id", sessionId);
 
     // Calculate if all required fields are answered
@@ -140,9 +140,16 @@ export async function POST(request: Request) {
       // existing_website is empty") evaluate against fresh sibling
       // answers from this same service.
       const serviceResponses = (allResponses || []).filter(
-        (r: { field_key: string; client_service_id: string | null }) =>
-          r.client_service_id === cs.id
-      ) as Array<{ field_key: string; field_value: string; client_service_id: string | null }>;
+        (r: {
+          field_key: string;
+          field_value: string;
+          client_service_id: string | null;
+        }) => r.client_service_id === cs.id
+      ) as Array<{
+        field_key: string;
+        field_value: string;
+        client_service_id: string | null;
+      }>;
       const answersByKey: Record<string, string> = {};
       for (const r of serviceResponses) {
         answersByKey[r.field_key] = r.field_value;
