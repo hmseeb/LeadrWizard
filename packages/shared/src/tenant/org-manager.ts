@@ -304,19 +304,19 @@ export async function getOrgCredentials(
   };
 
   // Helper: wrap a decrypt call so a single stale/unreadable blob doesn't
-  // kill the entire function. The most common cause of failure here is an
-  // ENCRYPTION_KEY rotation — any credential still encrypted with the old
-  // key throws "Unsupported state or unable to authenticate data" from
-  // Node's AES-GCM decipher. Treating that as "cred not configured" lets
-  // callers fall back to env vars or a clear "please re-save this in
-  // Settings" error, instead of a cryptic crypto failure that takes down
-  // every automation that touches any org credential.
+  // kill the entire function. Since the crypto module now derives its key
+  // from SUPABASE_SERVICE_ROLE_KEY and only falls back to ENCRYPTION_KEY for
+  // legacy blobs, the usual cause of a failure here is data encrypted with a
+  // key that's no longer available (e.g. the service role key was rotated,
+  // or an old ENCRYPTION_KEY was lost). Treat it as "cred not configured"
+  // so callers can surface a clean re-save prompt instead of a raw GCM auth
+  // tag error from every automation that touches any org credential.
   function tryDecrypt(label: string, value: string): string | null {
     try {
       return decrypt(value);
     } catch (err) {
       console.warn(
-        `[getOrgCredentials] failed to decrypt ${label} for org ${orgId} — likely an ENCRYPTION_KEY rotation; re-save this credential in Settings → Integrations:`,
+        `[getOrgCredentials] failed to decrypt ${label} for org ${orgId} — re-save this credential in Settings → Integrations to re-encrypt with the current key:`,
         err instanceof Error ? err.message : err
       );
       return null;

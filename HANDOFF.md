@@ -504,7 +504,11 @@ STRIPE_WEBHOOK_SECRET=whsec_xxx
 # Security
 CRON_SECRET=your-cron-secret
 PAYMENT_WEBHOOK_SECRET=your-webhook-signing-secret
-ENCRYPTION_KEY=32-byte-hex-key-for-aes-256-gcm
+# ENCRYPTION_KEY is optional — when unset, the credential encryption key is
+# derived deterministically from SUPABASE_SERVICE_ROLE_KEY via HKDF-SHA256.
+# Only set this if you have legacy v1 blobs still encrypted with an older
+# manual key and you want them to remain readable. See packages/shared/src/crypto/index.ts.
+# ENCRYPTION_KEY=32-byte-hex-key-for-aes-256-gcm
 
 # Notifications
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/xxx
@@ -525,7 +529,7 @@ Per-org credentials (Twilio, GHL, Vapi, ElevenLabs) are stored encrypted in the 
 
 2. **Idempotency matters.** The payment webhook uses `processed_webhook_events` table to deduplicate. `provision_client()` is idempotent on `payment_ref`. Don't break this.
 
-3. **Credential encryption.** Org credentials are AES-256-GCM encrypted in the DB. The format is `v1:iv:tag:ciphertext`. Use the existing `crypto/index.ts` module. The encryption key is the `ENCRYPTION_KEY` env var.
+3. **Credential encryption.** Org credentials are AES-256-GCM encrypted in the DB. The format is `v1:iv:tag:ciphertext`. Use the existing `crypto/index.ts` module. The encryption key is derived deterministically from `SUPABASE_SERVICE_ROLE_KEY` via HKDF-SHA256, so no separate env var is needed. Legacy `ENCRYPTION_KEY` is honored as a decrypt-only fallback for historical data.
 
 4. **A2P registration is multi-day.** It's not a single API call. It creates a Trust Hub, Brand, and Campaign on Twilio, then polls for approval over 3-7 days. The task processor handles this via `next_check_at` polling.
 

@@ -1,5 +1,6 @@
 import { createSupabaseServerClient, createSupabaseServiceClient } from "@/lib/supabase-server";
-import { getUserOrg, getOrgCredentials } from "@leadrwizard/shared/tenant";
+import { getUserOrg } from "@leadrwizard/shared/tenant";
+import { resolveGhlCredentials } from "@/lib/ghl-credentials";
 import { NextResponse } from "next/server";
 
 const GHL_API_BASE = "https://services.leadconnectorhq.com";
@@ -7,7 +8,11 @@ const GHL_API_BASE = "https://services.leadconnectorhq.com";
 /**
  * GET /api/ghl/locations
  * Fetches all GHL subaccounts/locations under the agency.
- * Reads the Agency API key from the org's encrypted credentials in the database.
+ *
+ * Credential resolution is delegated to `resolveGhlCredentials`, which
+ * tolerates a stale/unreadable encrypted blob by falling back to the
+ * `GHL_API_KEY` env var — so an ENCRYPTION_KEY rotation doesn't brick the
+ * "Link GHL sub-account" flow.
  */
 export async function GET() {
   try {
@@ -23,31 +28,20 @@ export async function GET() {
       return NextResponse.json({ error: "No organization found" }, { status: 403 });
     }
 
-    // Get decrypted GHL credentials from the database
-    const creds = await getOrgCredentials(serviceClient, orgData.org.id);
-
-    if (!creds.ghl) {
-      // Also check if the key exists but locationId was null (we made it optional)
-      const { data: org } = await serviceClient
-        .from("organizations")
-        .select("ghl_api_key_encrypted, ghl_company_id")
-        .eq("id", orgData.org.id)
-        .single();
-
-      if (!org || !(org as Record<string, string | null>).ghl_api_key_encrypted) {
-        return NextResponse.json({ error: "GHL API key not configured" }, { status: 400 });
-      }
-
-      // Decrypt manually since getOrgCredentials requires locationId
-      const { decrypt } = await import("@leadrwizard/shared/crypto");
-      const row = org as Record<string, string | null>;
-      const apiKey = decrypt(row.ghl_api_key_encrypted!);
-      const companyId = row.ghl_company_id;
-
-      return await fetchLocations(apiKey, companyId);
+    let apiKey: string;
+    let companyId: string | null;
+    try {
+      const resolved = await resolveGhlCredentials(serviceClient, orgData.org.id);
+      apiKey = resolved.apiKey;
+      companyId = resolved.companyId;
+    } catch (credErr) {
+      return NextResponse.json(
+        { error: credErr instanceof Error ? credErr.message : String(credErr) },
+        { status: 400 }
+      );
     }
 
-    return await fetchLocations(creds.ghl.apiKey, creds.ghl.companyId);
+    return await fetchLocations(apiKey, companyId);
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed to fetch locations" },
