@@ -16,15 +16,15 @@ insert into public.service_definitions (id, org_id, name, slug, description, req
    '[
      {"key": "business_name", "label": "Business Name", "type": "text", "required": true, "placeholder": "e.g., Acme Plumbing"},
      {"key": "niche", "label": "Business Niche/Industry", "type": "text", "required": true, "placeholder": "e.g., Plumbing, Dentist, Restaurant"},
-     {"key": "tagline", "label": "Business Tagline", "type": "text", "required": false, "placeholder": "e.g., Your trusted local plumber"},
-     {"key": "primary_color", "label": "Preferred Brand Color", "type": "text", "required": false, "placeholder": "e.g., Blue, #3B82F6"},
-     {"key": "logo_url", "label": "Logo (upload or URL)", "type": "file", "required": false},
      {"key": "phone", "label": "Business Phone", "type": "phone", "required": true},
      {"key": "email", "label": "Business Email", "type": "email", "required": true},
-     {"key": "address", "label": "Business Address", "type": "text", "required": false},
      {"key": "services_offered", "label": "Services You Offer", "type": "textarea", "required": true, "placeholder": "List the main services you offer"},
-     {"key": "about_text", "label": "About Your Business", "type": "textarea", "required": false, "help_text": "A brief description we can use on your About page"},
-     {"key": "existing_website", "label": "Existing Website (if you have one)", "type": "url", "required": false, "placeholder": "https://yourbusiness.com", "help_text": "If you already have a website, paste it here so we can import your logo, colors, and content into the new build."}
+     {"key": "existing_website", "label": "Do you have an existing website? (URL or type ''none'')", "type": "text", "required": true, "placeholder": "https://yourbusiness.com or ''none''", "help_text": "If you already have a site we''ll import your logo, colors, and copy from it. Type ''none'' if you don''t have one."},
+     {"key": "tagline", "label": "Business Tagline", "type": "text", "required": false, "placeholder": "e.g., Your trusted local plumber", "required_if": {"field": "existing_website", "equals_empty": true}},
+     {"key": "primary_color", "label": "Preferred Brand Color", "type": "text", "required": false, "placeholder": "e.g., Blue, #3B82F6", "required_if": {"field": "existing_website", "equals_empty": true}},
+     {"key": "address", "label": "Business Address", "type": "text", "required": false, "required_if": {"field": "existing_website", "equals_empty": true}},
+     {"key": "about_text", "label": "About Your Business", "type": "textarea", "required": false, "help_text": "A brief description we can use on your About page", "required_if": {"field": "existing_website", "equals_empty": true}},
+     {"key": "logo_url", "label": "Logo (upload or URL)", "type": "file", "required": false}
    ]'::jsonb,
    '[
      {"key": "select_template", "label": "Select Niche Template", "description": "Find or create a template for this niche", "automated": true, "task_type": "website_generation"},

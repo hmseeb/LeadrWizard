@@ -134,6 +134,40 @@ export interface DataFieldDefinition {
   options?: string[];
   placeholder?: string;
   help_text?: string;
+  /**
+   * Conditional requirement clause. When present, this field is only
+   * treated as required if the referenced sibling field's answer
+   * matches the predicate. Example:
+   *
+   *   { field: "existing_website", equals_empty: true }
+   *
+   * means: "this field is required *only* when the client's answer to
+   * `existing_website` is empty/blank/N/A". Used by the website-build
+   * service to ask for tagline / address / about_text / colors only when
+   * the client has no existing site to import from.
+   *
+   * Evaluation rules (see `evaluateRequiredIf` in
+   * `packages/shared/src/utils/required-fields.ts`):
+   * - If `required` is false AND no `required_if` matches, the field is
+   *   skipped entirely by the widget.
+   * - If `required_if` matches, the field is treated as required and
+   *   blocks both the auto-completion check and the per-service
+   *   `ready_to_deliver` promotion.
+   * - Sibling lookup is scoped to the same `client_service_id`'s
+   *   `session_responses`, NOT cross-service.
+   */
+  required_if?: RequiredIfClause;
+}
+
+export interface RequiredIfClause {
+  /** The sibling field key whose answer drives this clause. */
+  field: string;
+  /** Match when the sibling's answer is empty/whitespace/missing. */
+  equals_empty?: boolean;
+  /** Match when the sibling's answer equals this exact (trimmed) value. */
+  equals?: string;
+  /** Match when the sibling's answer is in this list of trimmed values (case-insensitive). */
+  equals_one_of?: string[];
 }
 
 export interface SetupStepDefinition {
