@@ -1,5 +1,6 @@
 import { createSupabaseServerClient, createSupabaseServiceClient } from "@/lib/supabase-server";
-import { getUserOrg, getOrgCredentials } from "@leadrwizard/shared/tenant";
+import { getUserOrg } from "@leadrwizard/shared/tenant";
+import { resolveGhlCredentials } from "@/lib/ghl-credentials";
 import { NextResponse } from "next/server";
 
 const GHL_API_BASE = "https://services.leadconnectorhq.com";
@@ -12,10 +13,10 @@ const GHL_API_BASE = "https://services.leadconnectorhq.com";
  * in GHL (our plan doesn't allow API creation), pastes the location ID into
  * LeadrWizard, and this endpoint verifies it + returns the details to display.
  *
- * Mirrors /api/ghl/locations/route.ts exactly for credential resolution so
- * the same "GHL API key configured and decryptable" invariant holds in both
- * places. Each failure mode returns a distinct error message so the UI shows
- * actionable feedback instead of generic crypto errors.
+ * Credential resolution is delegated to `resolveGhlCredentials`, which
+ * tolerates a stale/unreadable encrypted blob by falling back to the
+ * `GHL_API_KEY` env var — the same pattern used elsewhere in the codebase.
+ * That way an ENCRYPTION_KEY rotation doesn't brick this flow.
  */
 export async function GET(
   _request: Request,
@@ -45,44 +46,17 @@ export async function GET(
       return NextResponse.json({ error: "No organization found" }, { status: 403 });
     }
 
-    // --- Resolve GHL API key (matches /api/ghl/locations/route.ts pattern) ---
+    // --- Resolve GHL API key (tolerates stale encrypted blobs / key rotation). ---
     let apiKey: string;
     try {
-      const creds = await getOrgCredentials(serviceClient, orgData.org.id);
-      if (creds.ghl) {
-        apiKey = creds.ghl.apiKey;
-      } else {
-        // Fallback: decrypt the key manually when getOrgCredentials skipped
-        // populating creds.ghl because ghl_location_id was not set.
-        const { data: org } = await serviceClient
-          .from("organizations")
-          .select("ghl_api_key_encrypted")
-          .eq("id", orgData.org.id)
-          .single();
-
-        const row = org as Record<string, string | null> | null;
-        if (!row?.ghl_api_key_encrypted) {
-          return NextResponse.json(
-            {
-              error:
-                "GHL API key is not configured. Add it under Settings → Integrations → GHL.",
-            },
-            { status: 400 }
-          );
-        }
-
-        const { decrypt } = await import("@leadrwizard/shared/crypto");
-        apiKey = decrypt(row.ghl_api_key_encrypted);
-      }
+      const resolved = await resolveGhlCredentials(serviceClient, orgData.org.id);
+      apiKey = resolved.apiKey;
     } catch (credErr) {
-      const message = credErr instanceof Error ? credErr.message : String(credErr);
-      // Bubble up decrypt / env failures with a hint instead of a raw
-      // "Invalid key length" message the user can't act on.
       return NextResponse.json(
         {
-          error: `Failed to read GHL API key: ${message}. If you recently rotated the ENCRYPTION_KEY env var, re-save the GHL credentials in Settings to re-encrypt them.`,
+          error: credErr instanceof Error ? credErr.message : String(credErr),
         },
-        { status: 500 }
+        { status: 400 }
       );
     }
 
