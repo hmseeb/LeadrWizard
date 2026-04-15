@@ -68,12 +68,38 @@ export interface StartA2PRegistrationOverrides {
  * Outcome of an A2P trigger attempt. Mirrors the discriminated-union
  * shape the website-build trigger returns so the calling server
  * actions can render a consistent "ok / error" branch.
+ *
+ * The `dryRun` branch is returned when the helper is called with
+ * `{ dryRun: true }` — everything up to the Twilio submission runs
+ * (credential pre-flight + live Twilio Account ping + resolver +
+ * duplicate guard) but the actual Brand Registration / Customer
+ * Profile flow is skipped. The resolved payload is returned so the
+ * UI can render "this is what would be submitted" before committing.
  */
 export type A2PTriggerResult =
   | {
       ok: true;
+      mode: "submit";
       taskId: string;
       brandSid: string | null;
+    }
+  | {
+      ok: true;
+      mode: "dry_run";
+      /**
+       * Exact `A2PRegistrationData` payload that would be sent to
+       * `submitA2PRegistration`. Rendered in the preview panel so the
+       * operator can verify business info, use-case text, and sample
+       * messages before the real submit.
+       */
+      payload: import("@leadrwizard/shared/automations").A2PRegistrationData;
+      /**
+       * Twilio-reported account friendly name from the pre-flight
+       * `GET /v1/Accounts/{sid}.json` call, proving the creds
+       * actually authenticate against Twilio (not just that the
+       * env vars / org cred rows are non-empty).
+       */
+      twilioAccountName: string | null;
     }
   | {
       ok: false;
@@ -280,6 +306,37 @@ function trampolineTwilioEnv(creds: {
 }
 
 /**
+ * Hit Twilio's Account resource with the configured creds to verify
+ * they actually authenticate. Free — no brand is created, no message
+ * is sent, no billable resource is touched. Used by the dry-run path
+ * and the manual "preview" button to prove the creds are live before
+ * we commit to a real Brand Registration.
+ *
+ * Returns the account's `friendly_name` on success, or throws with the
+ * Twilio error body on failure (wrong SID, revoked token, suspended
+ * account, etc). Callers catch this and return a structured
+ * `reason: "not_configured"` error so the UI can surface it inline.
+ */
+async function pingTwilioAccount(
+  accountSid: string,
+  authToken: string
+): Promise<string | null> {
+  const auth = `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString("base64")}`;
+  const response = await fetch(
+    `https://api.twilio.com/2010-04-01/Accounts/${accountSid}.json`,
+    { headers: { Authorization: auth } }
+  );
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(
+      `Twilio credential check failed (${response.status}): ${errorBody}`
+    );
+  }
+  const body = (await response.json()) as { friendly_name?: string };
+  return body.friendly_name ?? null;
+}
+
+/**
  * Check whether the given client_service already has an A2P
  * registration in flight. Returns the existing task if one is
  * pending/in-progress/waiting-external so the caller can surface a
@@ -310,18 +367,39 @@ async function findInFlightA2PTask(
   return null;
 }
 
+export interface TriggerA2PRegistrationOptions {
+  /**
+   * When `true`, runs every check the real submission runs — credential
+   * pre-flight, live Twilio Account ping, duplicate-submit guard, and
+   * input resolution — but skips the actual `submitA2PRegistration`
+   * call and returns the resolved payload instead. Nothing is changed:
+   * no `service_tasks` row is created, `client_services.status` is not
+   * touched, and the `interaction_log` entry is tagged as a dry run so
+   * the timeline doesn't read like a real submission.
+   *
+   * Used by the "Preview (dry run)" button on the client detail page
+   * so operators can verify end-to-end wiring before paying Twilio for
+   * a real Brand Registration.
+   */
+  dryRun?: boolean;
+}
+
 /**
  * High-level "fire A2P registration" helper. Used by all three callers
  * (admin form, widget auto-trigger, manual retry button). Handles:
  *
  *   1. Credential pre-flight against per-org creds.
- *   2. Duplicate-submit guard.
- *   3. Input resolution (overrides → session_responses → clients row).
- *   4. Env-var trampoline so `submitA2PRegistration` can read creds.
- *   5. Submission via `submitA2PRegistration`.
- *   6. `client_services.status` → `in_progress` on success.
- *   7. `interaction_log` entry tagged with `ctx.source` so the timeline
- *      distinguishes the three paths.
+ *   2. Live Twilio Account ping — proves the creds actually auth
+ *      against Twilio before we commit to a real Brand Registration.
+ *   3. Duplicate-submit guard.
+ *   4. Input resolution (overrides → session_responses → clients row).
+ *   5. Env-var trampoline so `submitA2PRegistration` can read creds.
+ *   6. Submission via `submitA2PRegistration`. (Skipped when `dryRun`.)
+ *   7. `client_services.status` → `in_progress` on success. (Skipped
+ *      when `dryRun`.)
+ *   8. `interaction_log` entry tagged with `ctx.source` so the timeline
+ *      distinguishes the three paths. (Tagged as a dry run when
+ *      `dryRun`.)
  *
  * Returns a structured result — never throws on expected failures
  * (missing creds, duplicate submit, missing fields). Unexpected errors
@@ -334,19 +412,27 @@ export async function triggerA2PRegistration(
   clientId: string,
   clientServiceId: string,
   ctx: A2PTriggerContext,
-  overrides?: StartA2PRegistrationOverrides
+  overrides?: StartA2PRegistrationOverrides,
+  options?: TriggerA2PRegistrationOptions
 ): Promise<A2PTriggerResult> {
+  const dryRun = options?.dryRun === true;
+
   // --- 1. Credential pre-flight ---
   const creds = await getOrgCredentials(supabase, orgId);
-  if (!creds.twilio) {
+  let resolvedSid: string | null = null;
+  let resolvedToken: string | null = null;
+  if (creds.twilio) {
+    trampolineTwilioEnv(creds.twilio);
+    resolvedSid = creds.twilio.accountSid;
+    resolvedToken = creds.twilio.authToken;
+  } else {
     // Fall back to env vars — if they're set, the submitA2PRegistration
     // call will succeed. The error we surface here only fires when
     // neither source has Twilio configured.
-    const envConfigured =
-      !!process.env.TWILIO_ACCOUNT_SID &&
-      !!process.env.TWILIO_AUTH_TOKEN &&
-      !!process.env.TWILIO_PHONE_NUMBER;
-    if (!envConfigured) {
+    resolvedSid = process.env.TWILIO_ACCOUNT_SID ?? null;
+    resolvedToken = process.env.TWILIO_AUTH_TOKEN ?? null;
+    const envPhone = process.env.TWILIO_PHONE_NUMBER;
+    if (!resolvedSid || !resolvedToken || !envPhone) {
       return {
         ok: false,
         reason: "not_configured",
@@ -354,14 +440,33 @@ export async function triggerA2PRegistration(
           "Twilio is not configured for this org. Add Account SID, Auth Token, and a phone number under Settings → Integrations → Twilio before starting A2P registration.",
       };
     }
-  } else {
-    trampolineTwilioEnv(creds.twilio);
   }
 
-  // --- 2. Duplicate-submit guard ---
+  // --- 2. Live Twilio Account ping ---
+  // Proves the creds actually authenticate against Twilio — catches
+  // the "I saved a typo'd auth token in Settings" case before we ever
+  // attempt a Brand Registration. Free. Runs on both real submits and
+  // dry runs (the dry run path needs it the most).
+  let twilioAccountName: string | null = null;
+  try {
+    twilioAccountName = await pingTwilioAccount(resolvedSid, resolvedToken);
+  } catch (err) {
+    return {
+      ok: false,
+      reason: "not_configured",
+      error:
+        err instanceof Error
+          ? err.message
+          : "Twilio credential check failed",
+    };
+  }
+
+  // --- 3. Duplicate-submit guard ---
   // Prevents the auto-trigger + manual button racing, and refuses a
   // click on an already-in-flight registration. `failed` tasks fall
-  // through so Greg can retry without manual DB surgery.
+  // through so Greg can retry without manual DB surgery. Still enforced
+  // on dry runs so operators can't "preview" over a real in-flight
+  // submission and get confused about what would happen.
   const inFlight = await findInFlightA2PTask(supabase, clientServiceId);
   if (inFlight) {
     return {
@@ -371,7 +476,7 @@ export async function triggerA2PRegistration(
     };
   }
 
-  // --- 3. Input resolution ---
+  // --- 4. Input resolution ---
   let data: A2PRegistrationData;
   try {
     data = await resolveA2PInput(
@@ -391,7 +496,35 @@ export async function triggerA2PRegistration(
     };
   }
 
-  // --- 4. Fire the registration ---
+  // --- 5. Dry-run short-circuit ---
+  // Everything past this point mutates real state (Twilio Brand
+  // Registration, client_services.status, a new service_tasks row).
+  // The dry-run path logs the preview and returns the resolved
+  // payload without touching any of it.
+  if (dryRun) {
+    await supabase.from("interaction_log").insert({
+      client_id: clientId,
+      channel: "system",
+      direction: "outbound",
+      content_type: "system_event",
+      content: `A2P registration dry-run preview (no Twilio submission, no brand created)`,
+      metadata: {
+        client_service_id: clientServiceId,
+        source: ctx.source,
+        dry_run: true,
+        twilio_account_name: twilioAccountName,
+        preview_payload: data,
+      },
+    });
+    return {
+      ok: true,
+      mode: "dry_run",
+      payload: data,
+      twilioAccountName,
+    };
+  }
+
+  // --- 6. Fire the registration ---
   let task;
   try {
     task = await submitA2PRegistration(supabase, clientServiceId, data);
@@ -407,7 +540,7 @@ export async function triggerA2PRegistration(
     };
   }
 
-  // --- 5. Flip client_services.status ---
+  // --- 7. Flip client_services.status ---
   // Matches what `startManualOnboarding` has always done after calling
   // `submitA2PRegistration`. The cron task-processor's `checkA2PStatus`
   // later flips this to `delivered` once the campaign is VERIFIED.
@@ -416,7 +549,7 @@ export async function triggerA2PRegistration(
     .update({ status: "in_progress", updated_at: new Date().toISOString() })
     .eq("id", clientServiceId);
 
-  // --- 6. Log the event ---
+  // --- 8. Log the event ---
   await supabase.from("interaction_log").insert({
     client_id: clientId,
     channel: "system",
@@ -433,6 +566,7 @@ export async function triggerA2PRegistration(
 
   return {
     ok: true,
+    mode: "submit",
     taskId: task.id,
     brandSid: task.external_ref,
   };

@@ -236,6 +236,54 @@ export async function markClientServiceDelivered(
  * in the same `{ ok, error }` envelope the other server actions in
  * this file use so the button UI can surface the error inline.
  */
+/**
+ * Shared scope check for the A2P server actions. Factored out so the
+ * real submit path and the dry-run path can't drift on validation.
+ */
+async function assertA2PServiceScope(
+  clientId: string,
+  clientServiceId: string
+): Promise<{
+  supabase: Awaited<ReturnType<typeof getAuthedOrg>>["supabase"];
+  orgId: string;
+}> {
+  const { supabase, orgId } = await getAuthedOrg();
+
+  const { data: cs } = await supabase
+    .from("client_services")
+    .select(
+      "id, client_id, status, opted_out, client:clients(org_id), service:service_definitions(slug, name)"
+    )
+    .eq("id", clientServiceId)
+    .single();
+
+  if (!cs) throw new Error("Service not found");
+  const csRow = cs as unknown as {
+    id: string;
+    client_id: string;
+    status: string;
+    opted_out: boolean;
+    client: { org_id: string } | null;
+    service: { slug: string; name: string } | null;
+  };
+
+  if (csRow.client?.org_id !== orgId) {
+    throw new Error("Insufficient permissions");
+  }
+  if (csRow.client_id !== clientId) throw new Error("Client mismatch");
+  if (csRow.opted_out) throw new Error("Client has opted out of this service");
+  if (csRow.service?.slug !== "a2p-registration") {
+    throw new Error(
+      `A2P action called on non-A2P service: ${csRow.service?.slug}`
+    );
+  }
+  if (csRow.status === "delivered") {
+    throw new Error("A2P registration is already marked delivered");
+  }
+
+  return { supabase, orgId };
+}
+
 export async function startA2PRegistration(
   clientId: string,
   clientServiceId: string
@@ -244,39 +292,10 @@ export async function startA2PRegistration(
   | { ok: false; error: string }
 > {
   try {
-    const { supabase, orgId } = await getAuthedOrg();
-
-    const { data: cs } = await supabase
-      .from("client_services")
-      .select(
-        "id, client_id, status, opted_out, client:clients(org_id), service:service_definitions(slug, name)"
-      )
-      .eq("id", clientServiceId)
-      .single();
-
-    if (!cs) throw new Error("Service not found");
-    const csRow = cs as unknown as {
-      id: string;
-      client_id: string;
-      status: string;
-      opted_out: boolean;
-      client: { org_id: string } | null;
-      service: { slug: string; name: string } | null;
-    };
-
-    if (csRow.client?.org_id !== orgId) {
-      throw new Error("Insufficient permissions");
-    }
-    if (csRow.client_id !== clientId) throw new Error("Client mismatch");
-    if (csRow.opted_out) throw new Error("Client has opted out of this service");
-    if (csRow.service?.slug !== "a2p-registration") {
-      throw new Error(
-        `startA2PRegistration called on non-A2P service: ${csRow.service?.slug}`
-      );
-    }
-    if (csRow.status === "delivered") {
-      throw new Error("A2P registration is already marked delivered");
-    }
+    const { supabase, orgId } = await assertA2PServiceScope(
+      clientId,
+      clientServiceId
+    );
 
     const result = await triggerA2PRegistration(
       supabase,
@@ -290,6 +309,14 @@ export async function startA2PRegistration(
     if (!result.ok) {
       return { ok: false, error: result.error };
     }
+    // Dry-run result shouldn't reach this server action — but narrow
+    // just in case someone wires it wrong later.
+    if (result.mode !== "submit") {
+      return {
+        ok: false,
+        error: "Unexpected dry-run result from submit path",
+      };
+    }
     return { ok: true, taskId: result.taskId, brandSid: result.brandSid };
   } catch (err) {
     console.error("[startA2PRegistration] failed:", err);
@@ -299,6 +326,90 @@ export async function startA2PRegistration(
         err instanceof Error
           ? err.message
           : "Unknown error starting A2P registration",
+    };
+  }
+}
+
+/**
+ * Dry-run counterpart to `startA2PRegistration`. Runs the exact same
+ * credential pre-flight, live Twilio Account ping, duplicate-submit
+ * guard, and input resolver the real path runs — but stops short of
+ * actually calling Twilio's Trust Hub / Brand Registration endpoints.
+ *
+ * Intended as the "test before live" path: lets Greg click through
+ * the full pipeline on a real client and verify that creds work,
+ * inputs resolve correctly, and the payload matches what Twilio
+ * expects — without paying for a real Brand Registration (~$4) or
+ * waiting days for carrier approval.
+ *
+ * Returns the resolved `A2PRegistrationData` payload on success so
+ * the button UI can render a "this is what would be submitted"
+ * preview panel. Writes a dry-run entry to `interaction_log` so the
+ * timeline has a record of the check without looking like a real
+ * submission.
+ */
+export async function dryRunA2PRegistration(
+  clientId: string,
+  clientServiceId: string
+): Promise<
+  | {
+      ok: true;
+      twilioAccountName: string | null;
+      payload: {
+        business_name: string;
+        ein: string;
+        business_address: string;
+        business_city: string;
+        business_state: string;
+        business_zip: string;
+        business_phone: string;
+        contact_name: string;
+        contact_email: string;
+        use_case_description: string;
+        sample_messages: string[];
+      };
+    }
+  | { ok: false; error: string }
+> {
+  try {
+    const { supabase, orgId } = await assertA2PServiceScope(
+      clientId,
+      clientServiceId
+    );
+
+    const result = await triggerA2PRegistration(
+      supabase,
+      orgId,
+      clientId,
+      clientServiceId,
+      { source: "manual_start_a2p_registration" },
+      undefined,
+      { dryRun: true }
+    );
+
+    revalidatePath(`/clients/${clientId}`);
+    if (!result.ok) {
+      return { ok: false, error: result.error };
+    }
+    if (result.mode !== "dry_run") {
+      return {
+        ok: false,
+        error: "Unexpected submit result from dry-run path",
+      };
+    }
+    return {
+      ok: true,
+      twilioAccountName: result.twilioAccountName,
+      payload: result.payload,
+    };
+  } catch (err) {
+    console.error("[dryRunA2PRegistration] failed:", err);
+    return {
+      ok: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Unknown error running A2P dry run",
     };
   }
 }

@@ -270,7 +270,7 @@ export async function POST(request: Request) {
                 },
                 "Auto-trigger A2P registration failed — service left at ready_to_deliver for manual retry"
               );
-            } else {
+            } else if (result.mode === "submit") {
               log.info(
                 {
                   client_service_id: serviceId,
