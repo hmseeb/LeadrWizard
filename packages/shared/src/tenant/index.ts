@@ -2,6 +2,7 @@ export {
   createOrganization,
   getUserOrg,
   getOrgCredentials,
+  diagnoseGoosekitCredentials,
   inviteTeamMember,
   acceptInvitation,
   listOrgMembers,

@@ -470,3 +470,84 @@ export async function getOrgCredentials(
 
   return creds;
 }
+
+/**
+ * Return a precise human-readable reason why Goose Kit credentials
+ * could not be resolved for this org. Call this only when
+ * `getOrgCredentials(...).goosekit` is falsy — it re-reads the same
+ * columns and distinguishes between "nothing saved", "saved but won't
+ * decrypt", and "env-var fallback incomplete", so the UI can tell Greg
+ * which thing to fix instead of the generic "not fully configured"
+ * string.
+ */
+export async function diagnoseGoosekitCredentials(
+  supabase: SupabaseClient,
+  orgId: string
+): Promise<string> {
+  const { data: org } = await supabase
+    .from("organizations")
+    .select(
+      "goosekit_github_pat_encrypted, goosekit_vercel_token_encrypted, goosekit_claude_token_encrypted"
+    )
+    .eq("id", orgId)
+    .single();
+
+  const row = (org as Record<string, string | null> | null) || {};
+  const savedFields: Array<{ label: string; value: string | null }> = [
+    { label: "GitHub PAT", value: row.goosekit_github_pat_encrypted || null },
+    { label: "Vercel Token", value: row.goosekit_vercel_token_encrypted || null },
+    { label: "Claude Token", value: row.goosekit_claude_token_encrypted || null },
+  ];
+  const missing = savedFields.filter((f) => !f.value).map((f) => f.label);
+
+  const envPresent =
+    !!process.env.GOOSE_GITHUB_PAT &&
+    !!process.env.GOOSE_VERCEL_TOKEN &&
+    !!process.env.GOOSE_CLAUDE_TOKEN;
+  const envPartial =
+    !envPresent &&
+    (!!process.env.GOOSE_GITHUB_PAT ||
+      !!process.env.GOOSE_VERCEL_TOKEN ||
+      !!process.env.GOOSE_CLAUDE_TOKEN);
+
+  if (missing.length === 3 && !envPartial) {
+    return "Goose Kit has no tokens saved for this org and no GOOSE_* env vars set. Save GitHub PAT, Vercel Token, and Claude Token in Settings → Integrations.";
+  }
+
+  if (missing.length > 0 && missing.length < 3) {
+    return `Goose Kit is missing ${missing.join(", ")} for this org. Re-open Settings → Integrations and save all three tokens together.`;
+  }
+
+  // All three saved. Check whether they actually decrypt.
+  const decryptFailures: string[] = [];
+  const labels: Array<{ column: string; label: string }> = [
+    { column: "goosekit_github_pat_encrypted", label: "GitHub PAT" },
+    { column: "goosekit_vercel_token_encrypted", label: "Vercel Token" },
+    { column: "goosekit_claude_token_encrypted", label: "Claude Token" },
+  ];
+  for (const { column, label } of labels) {
+    const value = row[column];
+    if (!value) continue;
+    try {
+      const plain = decrypt(value);
+      if (!plain) decryptFailures.push(label);
+    } catch {
+      decryptFailures.push(label);
+    }
+  }
+  if (decryptFailures.length > 0) {
+    return `Goose Kit tokens are saved but ${decryptFailures.join(", ")} can't be decrypted (encryption key likely rotated since save). Re-save the token(s) in Settings → Integrations to re-encrypt with the current key.`;
+  }
+
+  if (envPartial) {
+    const partiallyMissing = [
+      !process.env.GOOSE_GITHUB_PAT && "GOOSE_GITHUB_PAT",
+      !process.env.GOOSE_VERCEL_TOKEN && "GOOSE_VERCEL_TOKEN",
+      !process.env.GOOSE_CLAUDE_TOKEN && "GOOSE_CLAUDE_TOKEN",
+    ].filter(Boolean);
+    return `Goose Kit env-var fallback is partially set — missing ${partiallyMissing.join(", ")}. Set all three or save per-org tokens in Settings → Integrations.`;
+  }
+
+  // Saved and decrypting but still not being picked up — rare edge case.
+  return "Goose Kit tokens appear saved and decryptable but were not resolved. Check server logs for `[getOrgCredentials]` warnings.";
+}

@@ -36,7 +36,11 @@ export interface A2PRegistrationData {
 interface TwilioA2PConfig {
   accountSid: string;
   authToken: string;
-  phoneNumber: string;
+  // Optional: only required at step 3 (Messaging Service attach) after
+  // the carrier approves the brand, which takes 1-7 days. Letting it be
+  // empty means Greg can kick off steps 1-2 with just SID+Auth and add
+  // the number before the brand lands.
+  phoneNumber?: string;
 }
 
 function getTwilioConfig(): TwilioA2PConfig {
@@ -44,13 +48,13 @@ function getTwilioConfig(): TwilioA2PConfig {
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   const phoneNumber = process.env.TWILIO_PHONE_NUMBER;
 
-  if (!accountSid || !authToken || !phoneNumber) {
+  if (!accountSid || !authToken) {
     throw new Error(
-      "Missing Twilio config: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER"
+      "Missing Twilio config: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN"
     );
   }
 
-  return { accountSid, authToken, phoneNumber };
+  return { accountSid, authToken, phoneNumber: phoneNumber || undefined };
 }
 
 function getAuthHeader(): string {
@@ -324,6 +328,18 @@ export async function checkA2PStatus(
       const brandStatus = brand.status as string;
 
       if (brandStatus === "APPROVED") {
+        // Step 3 attaches a phone number to the Messaging Service, so
+        // we can't proceed without one. If Greg kicked off submission
+        // with just SID+Auth (common during early setup), hold at
+        // brand_registration and let the cron re-check once
+        // TWILIO_PHONE_NUMBER is set — no resubmit needed.
+        if (!config.phoneNumber) {
+          console.warn(
+            `[a2p-manager] Brand ${task.external_ref} approved but TWILIO_PHONE_NUMBER is not set — holding at brand_registration until env var is added.`
+          );
+          return task.status;
+        }
+
         const data = lastResult.submitted_data as A2PRegistrationData;
 
         // Step 3: Create Messaging Service
@@ -536,6 +552,7 @@ async function pushPhoneToGHL(
   if (!lastResult) return;
 
   const config = getTwilioConfig();
+  if (!config.phoneNumber) return; // No Twilio phone configured — skip GHL phone sync
   const messagingServiceSid = lastResult.messaging_service_sid as string;
 
   // Resolve client from service task → client_service → client

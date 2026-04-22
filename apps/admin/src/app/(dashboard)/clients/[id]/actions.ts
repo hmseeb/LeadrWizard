@@ -1,7 +1,11 @@
 "use server";
 
 import { createSupabaseServerClient, createSupabaseServiceClient } from "@/lib/supabase-server";
-import { getUserOrg, getOrgCredentials } from "@leadrwizard/shared/tenant";
+import {
+  getUserOrg,
+  getOrgCredentials,
+  diagnoseGoosekitCredentials,
+} from "@leadrwizard/shared/tenant";
 import {
   getGoosekitJobStatus,
   editGoosekitSite,
@@ -534,6 +538,7 @@ export async function startGoosekitBuild(
     const creds = await getOrgCredentials(supabase, orgId);
     const result = await triggerGoosekitWebsiteBuild(
       supabase,
+      orgId,
       clientId,
       clientServiceId,
       resolved,
@@ -668,9 +673,8 @@ export async function editClientWebsite(
 
     const creds = await getOrgCredentials(supabase, orgId);
     if (!creds.goosekit) {
-      throw new Error(
-        "Goose Kit is not fully configured — save all three tokens (GitHub PAT, Vercel Token, Claude Token) in Settings → Integrations, or set GOOSE_GITHUB_PAT / GOOSE_VERCEL_TOKEN / GOOSE_CLAUDE_TOKEN as env vars."
-      );
+      const reason = await diagnoseGoosekitCredentials(supabase, orgId);
+      throw new Error(reason);
     }
 
     const created = await editGoosekitSite(repoName, trimmed, creds.goosekit);
