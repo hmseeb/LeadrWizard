@@ -44,7 +44,10 @@ import {
   type GoosekitBuildInput,
   type GoosekitJobStatus,
 } from "@leadrwizard/shared/automations";
-import { getOrgCredentials } from "@leadrwizard/shared/tenant";
+import {
+  getOrgCredentials,
+  diagnoseGoosekitCredentials,
+} from "@leadrwizard/shared/tenant";
 import type {
   OrgCredentials,
   WebsiteBuilderChoice,
@@ -407,6 +410,7 @@ export async function triggerAiWebsiteBuild(
  */
 export async function triggerGoosekitWebsiteBuild(
   supabase: ServiceClient,
+  orgId: string,
   clientId: string,
   clientServiceId: string,
   resolved: ResolvedWebsiteBuildInput,
@@ -415,9 +419,8 @@ export async function triggerGoosekitWebsiteBuild(
 ): Promise<TriggerResult> {
   try {
     if (!creds.goosekit) {
-      throw new Error(
-        "Goose Kit is not fully configured — save all three tokens (GitHub PAT, Vercel Token, Claude Token) in Settings → Integrations, or set GOOSE_GITHUB_PAT / GOOSE_VERCEL_TOKEN / GOOSE_CLAUDE_TOKEN as env vars."
-      );
+      const reason = await diagnoseGoosekitCredentials(supabase, orgId);
+      throw new Error(reason);
     }
 
     const buildInput: GoosekitBuildInput = {
@@ -546,6 +549,7 @@ export async function triggerDefaultWebsiteBuild(
   if (choice === "goosekit") {
     return triggerGoosekitWebsiteBuild(
       supabase,
+      orgId,
       clientId,
       clientServiceId,
       resolved,
