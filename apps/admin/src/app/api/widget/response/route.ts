@@ -113,7 +113,7 @@ export async function POST(request: Request) {
 
     const { data: allResponses } = await supabase
       .from("session_responses")
-      .select("field_key, client_service_id")
+      .select("field_key, field_value, client_service_id")
       .eq("session_id", sessionId);
 
     // Calculate if all required fields are answered
